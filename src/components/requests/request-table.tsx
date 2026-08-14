@@ -1,3 +1,5 @@
+'use client';
+
 import * as React from 'react';
 import Link from 'next/link';
 import { Inbox } from 'lucide-react';
@@ -5,8 +7,8 @@ import { TableWrap, THead, TH, TBody, TR, TD, Pagination } from '@/components/ui
 import { PriorityBadge, RiskBadge, SlaBadge, StatusBadge, TypeBadge } from '@/components/ui/badges';
 import { Avatar } from '@/components/ui/primitives';
 import { EmptyState } from '@/components/ui/states';
-import { formatMoney } from '@/lib/money';
-import { formatDate } from '@/lib/dates';
+import { useI18n } from '@/lib/i18n/client';
+import { formatDateL, formatMoneyL } from '@/lib/i18n/format';
 import type { RequestListRow } from '@/server/queries/requests';
 
 export type Column =
@@ -38,19 +40,20 @@ const DEFAULT_COLUMNS: Column[] = [
   'risk',
 ];
 
-const HEADINGS: Record<Column, { label: string; align?: 'left' | 'right' | 'center'; sort?: string }> = {
-  priority: { label: 'Priority', sort: 'priority' },
-  type: { label: 'Type' },
-  number: { label: 'Request' },
-  title: { label: 'Title' },
-  requester: { label: 'Requester' },
-  department: { label: 'Dept' },
-  amount: { label: 'Amount', align: 'right', sort: 'amount' },
-  status: { label: 'Status' },
-  submitted: { label: 'Submitted', sort: 'newest' },
-  approver: { label: 'With' },
-  sla: { label: 'SLA', sort: 'sla' },
-  risk: { label: 'AI risk' },
+/** Header label key and sort key per column. */
+const HEADINGS: Record<Column, { key: string; align?: 'left' | 'right' | 'center'; sort?: string }> = {
+  priority: { key: 'label.priority', sort: 'priority' },
+  type: { key: 'label.type' },
+  number: { key: 'label.request' },
+  title: { key: 'label.title' },
+  requester: { key: 'label.requester' },
+  department: { key: 'label.departmentShort' },
+  amount: { key: 'label.amount', align: 'right', sort: 'amount' },
+  status: { key: 'label.status' },
+  submitted: { key: 'label.submitted', sort: 'newest' },
+  approver: { key: 'label.with' },
+  sla: { key: 'label.sla', sort: 'sla' },
+  risk: { key: 'label.aiRisk' },
 };
 
 export function RequestTable({
@@ -60,7 +63,7 @@ export function RequestTable({
   pageSize,
   columns = DEFAULT_COLUMNS,
   baseParams,
-  emptyTitle = 'Nothing here',
+  emptyTitle,
   emptyDescription,
   emptyAction,
   currentSort,
@@ -71,20 +74,27 @@ export function RequestTable({
   pageSize: number;
   columns?: Column[];
   /** Current query string, so sort/pagination links preserve active filters. */
-  baseParams: URLSearchParams;
+  baseParams: string;
   emptyTitle?: string;
   emptyDescription?: string;
   emptyAction?: React.ReactNode;
   currentSort?: string;
 }) {
+  const { t, locale } = useI18n();
+
   if (rows.length === 0) {
     return (
-      <EmptyState icon={<Inbox className="size-5" />} title={emptyTitle} description={emptyDescription} action={emptyAction} />
+      <EmptyState
+        icon={<Inbox className="size-5" />}
+        title={emptyTitle ?? t('empty.nothingHere')}
+        description={emptyDescription}
+        action={emptyAction}
+      />
     );
   }
 
   const href = (overrides: Record<string, string>) => {
-    const p = new URLSearchParams(baseParams.toString());
+    const p = new URLSearchParams(baseParams);
     for (const [k, v] of Object.entries(overrides)) {
       if (v) p.set(k, v);
       else p.delete(k);
@@ -106,7 +116,7 @@ export function RequestTable({
                   href={h.sort ? href({ sort: h.sort, page: '' }) : undefined}
                   sort={h.sort ? (currentSort === h.sort ? 'desc' : 'none') : undefined}
                 >
-                  {h.label}
+                  {t(h.key)}
                 </TH>
               );
             })}
@@ -116,18 +126,28 @@ export function RequestTable({
           {rows.map((r) => (
             <TR key={r.id} interactive className="relative">
               {columns.map((c) => (
-                <Cell key={c} column={c} row={r} />
+                <Cell key={c} column={c} row={r} t={t} locale={locale} />
               ))}
             </TR>
           ))}
         </TBody>
       </TableWrap>
-      <Pagination page={page} pageSize={pageSize} total={total} makeHref={(p) => href({ page: String(p) })} />
+      <Pagination page={page} pageSize={pageSize} total={total} baseParams={baseParams} />
     </>
   );
 }
 
-function Cell({ column, row }: { column: Column; row: RequestListRow }) {
+function Cell({
+  column,
+  row,
+  t,
+  locale,
+}: {
+  column: Column;
+  row: RequestListRow;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+  locale: 'en' | 'ko';
+}) {
   switch (column) {
     case 'priority':
       return (
@@ -171,7 +191,7 @@ function Cell({ column, row }: { column: Column; row: RequestListRow }) {
     case 'amount':
       return (
         <TD numeric className={Number(row.amountBase) > 0 ? 'font-medium' : 'text-text-subtle'}>
-          {Number(row.amountBase) > 0 ? formatMoney(row.amountBase, row.currency) : '—'}
+          {Number(row.amountBase) > 0 ? formatMoneyL(locale, row.amountBase, row.currency) : '—'}
         </TD>
       );
     case 'status':
@@ -183,7 +203,7 @@ function Cell({ column, row }: { column: Column; row: RequestListRow }) {
     case 'submitted':
       return (
         <TD className="whitespace-nowrap text-text-muted tabular">
-          {row.submittedAt ? formatDate(row.submittedAt) : 'Not submitted'}
+          {row.submittedAt ? formatDateL(locale, row.submittedAt) : t('detail.notSubmitted')}
         </TD>
       );
     case 'approver':
@@ -208,7 +228,11 @@ function Cell({ column, row }: { column: Column; row: RequestListRow }) {
         </TD>
       );
     case 'risk':
-      return <TD>{row.risk ? <RiskBadge risk={row.risk} /> : <span className="text-xs text-text-subtle">Not assessed</span>}</TD>;
+      return (
+        <TD>
+          {row.risk ? <RiskBadge risk={row.risk} /> : <span className="text-xs text-text-subtle">{t('risk.notAssessed')}</span>}
+        </TD>
+      );
     default:
       return <TD />;
   }

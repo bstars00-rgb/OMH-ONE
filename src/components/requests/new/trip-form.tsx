@@ -6,9 +6,10 @@ import { Button, Card, CardBody, CardHeader, Checkbox, Field, Input, Select, Tex
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
 import { createTripAction } from '@/server/actions/create';
 import { daysBetween, toISODate } from '@/lib/dates';
-import { formatMoney, round2 } from '@/lib/money';
+import { round2 } from '@/lib/money';
+import { useI18n } from '@/lib/i18n/client';
+import { formatMoneyL } from '@/lib/i18n/format';
 import { CURRENCIES, TRIP_COST_CATEGORIES } from '@/types/domain';
-import { humanize } from '@/lib/utils';
 
 interface CostLine {
   key: string;
@@ -31,6 +32,8 @@ export function TripForm({
   colleagues: { id: string; name: string; departmentCode: string | null }[];
   destinations: { city: string; country: string; avgHotel: number }[];
 }) {
+  const { t, locale } = useI18n();
+  const money = (v: number) => formatMoneyL(locale, v, currency);
   const today = toISODate(new Date());
   const [country, setCountry] = React.useState('');
   const [city, setCity] = React.useState('');
@@ -68,11 +71,11 @@ export function TripForm({
     setCosts((prev) =>
       prev.map((c) =>
         c.category === 'HOTEL' && !c.amount
-          ? { ...c, amount: String(computed), description: `${nights} night(s) × ${travellerCount} room(s)` }
+          ? { ...c, amount: String(computed), description: t('tripForm.hotelLine', { nights, rooms: travellerCount }) }
           : c,
       ),
     );
-  }, [nights, rate, travellerCount]);
+  }, [nights, rate, travellerCount, t]);
 
   function payload() {
     return {
@@ -124,9 +127,9 @@ export function TripForm({
         <AiDraftBox type="BUSINESS_TRIP" onDraft={applyDraft} />
 
         <Card>
-          <CardHeader title="Destination and dates" icon={<Plane className="size-4" />} />
+          <CardHeader title={t('tripForm.destinationDates')} icon={<Plane className="size-4" />} />
           <CardBody className="grid gap-4 sm:grid-cols-2">
-            <Field label="City" htmlFor="city" required error={errors.city}>
+            <Field label={t('tripForm.city')} htmlFor="city" required error={errors.city}>
               <Input id="city" list="known-cities" value={city} onChange={(e) => setCity(e.target.value)} />
               <datalist id="known-cities">
                 {destinations.map((d) => (
@@ -135,7 +138,7 @@ export function TripForm({
               </datalist>
             </Field>
 
-            <Field label="Country" htmlFor="country" required error={errors.country}>
+            <Field label={t('tripForm.country')} htmlFor="country" required error={errors.country}>
               <Input
                 id="country"
                 list="known-countries"
@@ -152,11 +155,11 @@ export function TripForm({
               </datalist>
             </Field>
 
-            <Field label="Departure" htmlFor="startDate" required error={errors.startDate}>
+            <Field label={t('tripForm.departure')} htmlFor="startDate" required error={errors.startDate}>
               <Input id="startDate" type="date" min={today} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </Field>
 
-            <Field label="Return" htmlFor="endDate" required error={errors.endDate}>
+            <Field label={t('tripForm.return')} htmlFor="endDate" required error={errors.endDate}>
               <Input
                 id="endDate"
                 type="date"
@@ -171,35 +174,35 @@ export function TripForm({
 
             <label className="flex items-center gap-2 text-xs text-text sm:col-span-2">
               <Checkbox checked={isInternational} onChange={(e) => setIsInternational(e.target.checked)} />
-              International trip
-              <span className="text-text-subtle">— international travel always requires Director approval.</span>
+              {t('tripForm.internationalLabel')}
+              <span className="text-text-subtle">{t('tripForm.internationalHint')}</span>
             </label>
 
-            <Field label="Purpose" htmlFor="purpose" required className="sm:col-span-2" error={errors.purpose}>
+            <Field label={t('label.purpose')} htmlFor="purpose" required className="sm:col-span-2" error={errors.purpose}>
               <Textarea
                 id="purpose"
                 rows={3}
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
-                placeholder="What is the trip for, and why does it need to happen in person?"
+                placeholder={t('tripForm.purposePlaceholder')}
               />
             </Field>
 
-            <Field label="Event or conference" htmlFor="eventName" error={errors.eventName}>
+            <Field label={t('tripForm.eventLabel')} htmlFor="eventName" error={errors.eventName}>
               <Input id="eventName" value={eventName} onChange={(e) => setEventName(e.target.value)} />
             </Field>
 
-            <Field label="Partner or counterparty" htmlFor="partner" error={errors.partner}>
+            <Field label={t('tripForm.partnerLabel')} htmlFor="partner" error={errors.partner}>
               <Input id="partner" value={partner} onChange={(e) => setPartner(e.target.value)} />
             </Field>
           </CardBody>
         </Card>
 
         <Card>
-          <CardHeader title="Travellers" description="You are included automatically." />
+          <CardHeader title={t('tripForm.travellersTitle')} description={t('tripForm.travellersSub')} />
           <CardBody>
             <fieldset>
-              <legend className="sr-only">Additional travellers</legend>
+              <legend className="sr-only">{t('tripForm.additionalTravellers')}</legend>
               <div className="grid max-h-52 gap-1 overflow-y-auto sm:grid-cols-2">
                 {colleagues.map((c) => (
                   <label key={c.id} className="flex items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-surface-hover">
@@ -219,30 +222,33 @@ export function TripForm({
         </Card>
 
         <Card>
-          <CardHeader title="Flights, hotel and transport" />
+          <CardHeader title={t('tripForm.logistics')} />
           <CardBody className="grid gap-4 sm:grid-cols-2">
-            <Field label="Outbound flight" htmlFor="outboundFlight" error={errors.outboundFlight}>
+            <Field label={t('content.outbound')} htmlFor="outboundFlight" error={errors.outboundFlight}>
               <Input id="outboundFlight" value={outboundFlight} onChange={(e) => setOutbound(e.target.value)} placeholder="VN425" />
             </Field>
-            <Field label="Return flight" htmlFor="inboundFlight" error={errors.inboundFlight}>
+            <Field label={t('content.inbound')} htmlFor="inboundFlight" error={errors.inboundFlight}>
               <Input id="inboundFlight" value={inboundFlight} onChange={(e) => setInbound(e.target.value)} placeholder="VN669" />
             </Field>
-            <Field label="Hotel" htmlFor="hotelName" error={errors.hotelName}>
+            <Field label={t('content.hotel')} htmlFor="hotelName" error={errors.hotelName}>
               <Input id="hotelName" value={hotelName} onChange={(e) => setHotelName(e.target.value)} />
             </Field>
-            <Field label="Transport" htmlFor="transportation" error={errors.transportation}>
+            <Field label={t('content.transport')} htmlFor="transportation" error={errors.transportation}>
               <Input id="transportation" value={transportation} onChange={(e) => setTransportation(e.target.value)} />
             </Field>
-            <Field label="Nights" htmlFor="hotelNights" error={errors.hotelNights}>
+            <Field label={t('content.nights')} htmlFor="hotelNights" error={errors.hotelNights}>
               <Input id="hotelNights" type="number" min={0} value={hotelNights} onChange={(e) => setHotelNights(e.target.value)} />
             </Field>
             <Field
-              label="Rate per night"
+              label={t('content.ratePerNight')}
               htmlFor="hotelRatePerNight"
               hint={
                 knownDest && knownDest.avgHotel > 0
-                  ? `Company average in ${knownDest.city}: ${formatMoney(knownDest.avgHotel)}. Policy cap is $150.`
-                  : 'Policy cap is $150 per night.'
+                  ? t('tripForm.rateHintKnown', {
+                      city: knownDest.city,
+                      amount: formatMoneyL(locale, knownDest.avgHotel),
+                    })
+                  : t('tripForm.rateHint')
               }
               error={errors.hotelRatePerNight}
             >
@@ -263,11 +269,11 @@ export function TripForm({
 
         <Card>
           <CardHeader
-            title="Estimated cost"
-            description="Break the estimate down so approvers can see where the money goes."
+            title={t('tripForm.estimatedCost')}
+            description={t('tripForm.estimatedCostSub')}
             actions={
               <Button size="sm" variant="secondary" onClick={() => setCosts((p) => [...p, newLine('OTHER')])}>
-                <Plus /> Add line
+                <Plus /> {t('tripForm.addLine')}
               </Button>
             }
           />
@@ -275,24 +281,24 @@ export function TripForm({
             {costs.map((line, i) => (
               <div key={line.key} className="grid gap-2 sm:grid-cols-[9rem_minmax(0,1fr)_8rem_auto]">
                 <Select
-                  aria-label={`Cost category ${i + 1}`}
+                  aria-label={t('tripForm.costCategory', { n: i + 1 })}
                   value={line.category}
                   onChange={(e) => setCosts((p) => p.map((c) => (c.key === line.key ? { ...c, category: e.target.value } : c)))}
                 >
                   {TRIP_COST_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
-                      {humanize(c)}
+                      {t(`tripCost.${c}`)}
                     </option>
                   ))}
                 </Select>
                 <Input
-                  aria-label={`Cost description ${i + 1}`}
-                  placeholder="Description"
+                  aria-label={t('tripForm.costDescription', { n: i + 1 })}
+                  placeholder={t('label.description')}
                   value={line.description}
                   onChange={(e) => setCosts((p) => p.map((c) => (c.key === line.key ? { ...c, description: e.target.value } : c)))}
                 />
                 <Input
-                  aria-label={`Cost amount ${i + 1}`}
+                  aria-label={t('tripForm.costAmount', { n: i + 1 })}
                   type="number"
                   min={0}
                   step="0.01"
@@ -306,7 +312,7 @@ export function TripForm({
                 <Button
                   size="icon"
                   variant="ghost"
-                  aria-label={`Remove cost line ${i + 1}`}
+                  aria-label={t('tripForm.removeCost', { n: i + 1 })}
                   disabled={costs.length === 1}
                   onClick={() => setCosts((p) => p.filter((c) => c.key !== line.key))}
                 >
@@ -318,7 +324,7 @@ export function TripForm({
 
             <div className="flex items-center justify-between border-t border-border-subtle pt-2.5">
               <Select
-                aria-label="Currency"
+                aria-label={t('label.currency')}
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
                 className="h-8 w-24"
@@ -330,10 +336,10 @@ export function TripForm({
                 ))}
               </Select>
               <p className="text-sm font-semibold text-text tabular">
-                Total {formatMoney(total, currency)}
+                {t('tripForm.totalLine', { amount: money(total) })}
                 {travellerCount > 1 && (
                   <span className="ml-2 text-xs font-normal text-text-muted">
-                    {formatMoney(round2(total / travellerCount), currency)} per traveller
+                    {t('content.perTraveller', { amount: money(round2(total / travellerCount)) })}
                   </span>
                 )}
               </p>
@@ -354,22 +360,19 @@ export function TripForm({
 
       <aside>
         <Card className="sticky top-20">
-          <CardHeader title="Summary" />
+          <CardHeader title={t('tripForm.summary')} />
           <CardBody className="space-y-1.5 text-xs">
-            <SummaryRow label="Destination" value={city && country ? `${city}, ${country}` : '—'} />
-            <SummaryRow label="Duration" value={duration ? `${duration} day${duration === 1 ? '' : 's'}` : '—'} />
-            <SummaryRow label="Travellers" value={String(travellerCount)} />
-            <SummaryRow label="Hotel" value={nights && rate ? `${nights} × ${formatMoney(rate, currency)}` : '—'} />
-            <SummaryRow label="Total" value={formatMoney(total, currency)} strong />
+            <SummaryRow label={t('content.destination')} value={city && country ? `${city}, ${country}` : '—'} />
+            <SummaryRow label={t('content.duration')} value={duration ? t('unit.days', { count: duration }) : '—'} />
+            <SummaryRow label={t('tripForm.travellersTitle')} value={String(travellerCount)} />
+            <SummaryRow label={t('content.hotel')} value={nights && rate ? `${nights} × ${money(rate)}` : '—'} />
+            <SummaryRow label={t('label.total')} value={money(total)} strong />
             {rate > 150 && (
               <p className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
-                {formatMoney(rate, currency)} per night is above the $150 policy cap. You can still submit — the approver
-                will see the difference and the reason.
+                {t('tripForm.hotelOver', { rate: money(rate) })}
               </p>
             )}
-            {isInternational && (
-              <p className="mt-2 text-[11px] text-text-subtle">International — routes to the Director after your manager.</p>
-            )}
+            {isInternational && <p className="mt-2 text-[11px] text-text-subtle">{t('tripForm.internationalNote')}</p>}
           </CardBody>
         </Card>
       </aside>

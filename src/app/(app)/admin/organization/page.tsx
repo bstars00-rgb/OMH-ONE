@@ -10,12 +10,17 @@ import { PageHeader } from '@/components/page-header';
 import { ForbiddenPage } from '@/components/ui/states';
 import { Avatar, Badge, Card, CardHeader } from '@/components/ui/primitives';
 import { TableWrap, THead, TH, TBody, TR, TD } from '@/components/ui/table';
+import { getI18n, getT } from '@/lib/i18n/server';
 
-export const metadata: Metadata = { title: 'Organization' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('org.title') };
+}
 
 export default async function OrganizationPage() {
   const session = await requireSession();
-  if (!can(session, 'admin.organization')) return <ForbiddenPage what="organization settings" />;
+  const { t } = await getI18n();
+  if (!can(session, 'admin.organization')) return <ForbiddenPage what={t('org.title')} />;
 
   const db = await ready();
   const [officeRows, deptRows, teamRows, ccRows] = await Promise.all([
@@ -61,22 +66,22 @@ export default async function OrganizationPage() {
   return (
     <>
       <PageHeader
-        title="Organization"
-        description="Offices, departments, teams and cost centres. Department heads drive approval routing."
+        title={t('org.title')}
+        description={t('org.subtitle')}
       />
 
       <div className="space-y-4">
         <Card>
-          <CardHeader title={`Offices (${officeRows.length})`} icon={<Building2 className="size-4" />} />
+          <CardHeader title={t('org.offices', { count: officeRows.length })} icon={<Building2 className="size-4" />} />
           <TableWrap>
             <THead>
               <TR>
-                <TH>Code</TH>
-                <TH>Name</TH>
-                <TH>Location</TH>
-                <TH>Timezone</TH>
-                <TH>Base currency</TH>
-                <TH align="right">Headcount</TH>
+                <TH>{t('org.code')}</TH>
+                <TH>{t('label.name')}</TH>
+                <TH>{t('org.location')}</TH>
+                <TH>{t('org.timezone')}</TH>
+                <TH>{t('org.baseCurrency')}</TH>
+                <TH align="right">{t('org.headcount')}</TH>
               </TR>
             </THead>
             <TBody>
@@ -100,17 +105,17 @@ export default async function OrganizationPage() {
 
         <Card>
           <CardHeader
-            title={`Departments (${deptRows.length})`}
-            description="The department head resolves the DEPT_HEAD approval step; HR, FIN and CEO heads resolve the HR, Finance and Director steps."
+            title={t('org.departments', { count: deptRows.length })}
+            description={t('org.departmentsSub')}
           />
           <TableWrap>
             <THead>
               <TR>
-                <TH>Code</TH>
-                <TH>Name</TH>
-                <TH>Office</TH>
-                <TH>Head</TH>
-                <TH align="right">Headcount</TH>
+                <TH>{t('org.code')}</TH>
+                <TH>{t('label.name')}</TH>
+                <TH>{t('label.office')}</TH>
+                <TH>{t('org.head')}</TH>
+                <TH align="right">{t('org.headcount')}</TH>
               </TR>
             </THead>
             <TBody>
@@ -128,7 +133,7 @@ export default async function OrganizationPage() {
                         {d.headName}
                       </Link>
                     ) : (
-                      <span className="text-rose-600 dark:text-rose-400">Not set — routing will skip this step</span>
+                      <span className="text-rose-600 dark:text-rose-400">{t('org.headNotSet')}</span>
                     )}
                   </TD>
                   <TD numeric>{d.headcount}</TD>
@@ -140,13 +145,13 @@ export default async function OrganizationPage() {
 
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
-            <CardHeader title={`Teams (${teamRows.length})`} />
+            <CardHeader title={t('org.teams', { count: teamRows.length })} />
             <TableWrap>
               <THead>
                 <TR>
-                  <TH>Code</TH>
-                  <TH>Name</TH>
-                  <TH>Department</TH>
+                  <TH>{t('org.code')}</TH>
+                  <TH>{t('label.name')}</TH>
+                  <TH>{t('label.department')}</TH>
                 </TR>
               </THead>
               <TBody>
@@ -162,14 +167,14 @@ export default async function OrganizationPage() {
           </Card>
 
           <Card>
-            <CardHeader title={`Cost centres (${ccRows.length})`} description="Charge target on every request" />
+            <CardHeader title={t('org.costCenters', { count: ccRows.length })} description={t('org.costCentersSub')} />
             <TableWrap>
               <THead>
                 <TR>
-                  <TH>Code</TH>
-                  <TH>Name</TH>
-                  <TH>Department</TH>
-                  <TH>Status</TH>
+                  <TH>{t('org.code')}</TH>
+                  <TH>{t('label.name')}</TH>
+                  <TH>{t('label.department')}</TH>
+                  <TH>{t('label.status')}</TH>
                 </TR>
               </THead>
               <TBody>
@@ -179,7 +184,9 @@ export default async function OrganizationPage() {
                     <TD className="font-medium">{c.name}</TD>
                     <TD className="text-text-muted">{c.departmentCode ?? '—'}</TD>
                     <TD>
-                      <Badge tone={c.active ? 'emerald' : 'slate'}>{c.active ? 'Active' : 'Inactive'}</Badge>
+                      <Badge tone={c.active ? 'emerald' : 'slate'}>
+                        {t(c.active ? 'state.active' : 'state.inactive')}
+                      </Badge>
                     </TD>
                   </TR>
                 ))}
@@ -190,13 +197,10 @@ export default async function OrganizationPage() {
       </div>
 
       <p className="mt-4 max-w-3xl text-[11px] leading-relaxed text-text-subtle">
-        The organization structure is read-only in this prototype — it is seeded and edited directly in the database.
-        Everything downstream reads from it live, so changing a department head immediately changes who new requests
-        route to. Employee records themselves are managed under{' '}
+        {t('org.readOnlyNote')}{' '}
         <Link href="/people" className="text-accent hover:underline">
-          Employees
+          {t('people.title')} →
         </Link>
-        .
       </p>
     </>
   );

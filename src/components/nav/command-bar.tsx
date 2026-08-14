@@ -15,25 +15,31 @@ import {
   LayoutDashboard,
   Users,
 } from 'lucide-react';
+import { useT } from '@/lib/i18n/client';
 import { cn } from '@/lib/utils';
 import type { SearchHit } from '@/server/queries/search';
 
 interface QuickAction {
-  label: string;
+  labelKey: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  /**
+   * Match terms in both languages, so typing "출장" and typing "trip" both find
+   * the same action. The label is matched separately, in whichever language the
+   * user is viewing.
+   */
   keywords: string;
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
-  { label: 'New business trip', href: '/requests/new/BUSINESS_TRIP', icon: Plane, keywords: 'trip travel create new' },
-  { label: 'New purchase request', href: '/requests/new/PURCHASE', icon: ShoppingCart, keywords: 'pr purchase buy create new' },
-  { label: 'New expense claim', href: '/requests/new/EXPENSE', icon: Receipt, keywords: 'expense claim receipt create new' },
-  { label: 'New leave request', href: '/requests/new/LEAVE', icon: CalendarDays, keywords: 'leave holiday vacation create new' },
-  { label: 'Ask OHMY AI', href: '/assistant', icon: Sparkles, keywords: 'ai ask question assistant' },
-  { label: 'Open dashboard', href: '/', icon: LayoutDashboard, keywords: 'home dashboard overview' },
-  { label: 'Approval inbox', href: '/approvals', icon: FileText, keywords: 'approvals inbox pending' },
-  { label: 'Employee directory', href: '/people', icon: Users, keywords: 'people employees directory staff' },
+  { labelKey: 'command.newTrip', href: '/requests/new/BUSINESS_TRIP', icon: Plane, keywords: 'trip travel create new 출장 신청' },
+  { labelKey: 'command.newPurchase', href: '/requests/new/PURCHASE', icon: ShoppingCart, keywords: 'pr purchase buy create new 구매 요청 발주' },
+  { labelKey: 'command.newExpense', href: '/requests/new/EXPENSE', icon: Receipt, keywords: 'expense claim receipt create new 경비 정산 영수증' },
+  { labelKey: 'command.newLeave', href: '/requests/new/LEAVE', icon: CalendarDays, keywords: 'leave holiday vacation create new 연차 휴가 신청' },
+  { labelKey: 'command.askAi', href: '/assistant', icon: Sparkles, keywords: 'ai ask question assistant 질문 어시스턴트' },
+  { labelKey: 'command.openDashboard', href: '/', icon: LayoutDashboard, keywords: 'home dashboard overview 대시보드 홈' },
+  { labelKey: 'command.approvalInbox', href: '/approvals', icon: FileText, keywords: 'approvals inbox pending 결재함 결재 대기' },
+  { labelKey: 'command.directory', href: '/people', icon: Users, keywords: 'people employees directory staff 임직원 조회 직원' },
 ];
 
 /**
@@ -42,6 +48,7 @@ const QUICK_ACTIONS: QuickAction[] = [
  */
 export function CommandBar() {
   const router = useRouter();
+  const t = useT();
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [hits, setHits] = React.useState<SearchHit[]>([]);
@@ -112,11 +119,16 @@ export function CommandBar() {
 
   const visibleHits = tooShort ? [] : hits;
 
+  const actions = React.useMemo(
+    () => QUICK_ACTIONS.map((a) => ({ ...a, label: t(a.labelKey) })),
+    [t],
+  );
+
   const filteredActions = React.useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return QUICK_ACTIONS;
-    return QUICK_ACTIONS.filter((a) => a.label.toLowerCase().includes(q) || a.keywords.includes(q));
-  }, [query]);
+    if (!q) return actions;
+    return actions.filter((a) => a.label.toLowerCase().includes(q) || a.keywords.includes(q));
+  }, [actions, query]);
 
   const flat: { href: string; label: string }[] = [
     ...filteredActions.map((a) => ({ href: a.href, label: a.label })),
@@ -155,15 +167,20 @@ export function CommandBar() {
         className="flex h-9 w-full max-w-md items-center gap-2 rounded-[var(--radius-control)] border border-border-subtle bg-surface px-3 text-left text-text-subtle transition-colors hover:border-border-strong"
       >
         <Search className="size-4 shrink-0" />
-        <span className="flex-1 truncate text-[13px]">Search requests, people, trips…</span>
+        <span className="flex-1 truncate text-[13px]">{t('header.searchPlaceholder')}</span>
         <kbd className="hidden shrink-0 rounded border border-border-subtle bg-surface-sunken px-1.5 py-0.5 font-sans text-[10px] font-medium text-text-subtle sm:inline">
           ⌘K
         </kbd>
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]" role="dialog" aria-modal="true" aria-label="Command bar">
-          <button type="button" aria-label="Close" className="absolute inset-0 bg-zinc-950/50" onClick={() => setOpen(false)} />
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]" role="dialog" aria-modal="true" aria-label={t('header.commandBar')}>
+          <button
+            type="button"
+            aria-label={t('action.close')}
+            className="absolute inset-0 bg-zinc-950/50"
+            onClick={() => setOpen(false)}
+          />
           <div className="relative w-[min(38rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--radius-card)] border border-border-subtle bg-surface-raised shadow-modal">
             <div className="flex items-center gap-2.5 border-b border-border-subtle px-4">
               {loading ? (
@@ -179,8 +196,8 @@ export function CommandBar() {
                   setCursor(0);
                 }}
                 onKeyDown={onKeyDown}
-                placeholder="Search or jump to…"
-                aria-label="Search or jump to"
+                placeholder={t('header.commandPlaceholder')}
+                aria-label={t('header.commandLabel')}
                 className="h-12 flex-1 bg-transparent text-sm text-text outline-none placeholder:text-text-subtle"
               />
               <kbd className="rounded border border-border-subtle bg-surface-sunken px-1.5 py-0.5 font-sans text-[10px] text-text-subtle">
@@ -190,7 +207,7 @@ export function CommandBar() {
 
             <div className="max-h-[55vh] overflow-y-auto p-2">
               {filteredActions.length > 0 && (
-                <Group label="Actions">
+                <Group label={t('header.actions')}>
                   {filteredActions.map((a, i) => (
                     <Row key={a.href} active={cursor === i} onSelect={() => go(a.href)}>
                       <a.icon className="size-4 shrink-0 text-text-subtle" />
@@ -201,7 +218,7 @@ export function CommandBar() {
               )}
 
               {Object.entries(grouped).map(([group, items]) => (
-                <Group key={group} label={group}>
+                <Group key={group} label={t(`header.group.${group}`)}>
                   {items.map((h) => {
                     const idx = flat.findIndex((f) => f.href === h.href && f.label === h.title);
                     return (
@@ -219,16 +236,16 @@ export function CommandBar() {
 
               {!tooShort && !loading && visibleHits.length === 0 && filteredActions.length === 0 && (
                 <p className="px-3 py-8 text-center text-xs text-text-muted">
-                  No results for “{query}”. Try a request number, a person, or a city.
+                  {t('header.noSearchResults', { query })}
                 </p>
               )}
             </div>
 
             <div className="flex items-center gap-3 border-t border-border-subtle px-4 py-2 text-[11px] text-text-subtle">
               <span className="flex items-center gap-1">
-                <CornerDownLeft className="size-3" /> to open
+                <CornerDownLeft className="size-3" /> {t('header.toOpen')}
               </span>
-              <span>↑↓ to navigate</span>
+              <span>{t('header.toNavigate')}</span>
             </div>
           </div>
         </div>

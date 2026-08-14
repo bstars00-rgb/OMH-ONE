@@ -6,6 +6,7 @@ import { Loader2, Save } from 'lucide-react';
 import { Button, Input, Select } from '@/components/ui/primitives';
 import { TR, TD } from '@/components/ui/table';
 import { saveSettingAction, type AdminResult } from '@/server/actions/admin';
+import { useI18n } from '@/lib/i18n/client';
 
 export interface SettingDto {
   key: string;
@@ -16,6 +17,7 @@ export interface SettingDto {
 
 export function SettingRow({ setting, onResult }: { setting: SettingDto; onResult: (r: AdminResult) => void }) {
   const router = useRouter();
+  const { t, tOr } = useI18n();
   const initial = typeof setting.value === 'string' ? setting.value : JSON.stringify(setting.value);
   const [value, setValue] = React.useState(initial);
   const [pending, setPending] = React.useState(false);
@@ -37,12 +39,12 @@ export function SettingRow({ setting, onResult }: { setting: SettingDto; onResul
       <TD>
         <code className="font-mono text-xs font-medium">{setting.key}</code>
       </TD>
-      <TD className="max-w-80 text-text-muted">{setting.description ?? '—'}</TD>
+      <TD className="max-w-80 text-text-muted">{tOr(`setting.${setting.key}`, setting.description ?? '—')}</TD>
       <TD>
         {isBoolean ? (
           <Select value={value} onChange={(e) => setValue(e.target.value)} className="h-8 w-28" aria-label={setting.key}>
-            <option value="true">Enabled</option>
-            <option value="false">Disabled</option>
+            <option value="true">{t('state.enabled')}</option>
+            <option value="false">{t('state.disabled')}</option>
           </Select>
         ) : (
           <Input
@@ -57,7 +59,7 @@ export function SettingRow({ setting, onResult }: { setting: SettingDto; onResul
       <TD align="right">
         <Button size="sm" variant={dirty ? 'primary' : 'secondary'} disabled={!dirty || pending} onClick={save}>
           {pending ? <Loader2 className="animate-spin" /> : <Save />}
-          Save
+          {t('action.save')}
         </Button>
       </TD>
     </TR>

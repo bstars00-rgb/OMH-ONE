@@ -1,8 +1,11 @@
+'use client';
+
 import * as React from 'react';
 import Link from 'next/link';
 import { AlertTriangle, Inbox, Lock, SearchX, ServerCrash, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from './primitives';
+import { useT } from '@/lib/i18n/client';
 
 export function EmptyState({
   icon,
@@ -30,11 +33,12 @@ export function EmptyState({
 }
 
 export function NoResults({ onReset }: { onReset?: React.ReactNode }) {
+  const t = useT();
   return (
     <EmptyState
       icon={<SearchX className="size-5" />}
-      title="No matching results"
-      description="No records match the current filters. Try widening the date range or clearing a filter."
+      title={t('empty.noResults')}
+      description={t('empty.noResultsHint')}
       action={onReset}
     />
   );
@@ -52,32 +56,14 @@ export function ErrorState({
   action?: React.ReactNode;
   className?: string;
 }) {
+  const t = useT();
+
   const config = {
-    generic: {
-      icon: <ServerCrash className="size-5" />,
-      title: 'Something went wrong',
-      description: 'The request could not be completed. Try again, and if it persists contact your administrator.',
-    },
-    permission: {
-      icon: <Lock className="size-5" />,
-      title: 'You do not have access to this',
-      description: 'Your role does not include permission to view this record. Ask an administrator if you need it.',
-    },
-    notFound: {
-      icon: <SearchX className="size-5" />,
-      title: 'Not found',
-      description: 'This record does not exist, or it has been removed.',
-    },
-    ai: {
-      icon: <WifiOff className="size-5" />,
-      title: 'AI is temporarily unavailable',
-      description: 'Analysis could not be generated. Approvals and all other functions are unaffected.',
-    },
-    network: {
-      icon: <AlertTriangle className="size-5" />,
-      title: 'Connection problem',
-      description: 'The server could not be reached. Check your connection and try again.',
-    },
+    generic: { icon: <ServerCrash className="size-5" />, key: 'generic' },
+    permission: { icon: <Lock className="size-5" />, key: 'permission' },
+    notFound: { icon: <SearchX className="size-5" />, key: 'notFound' },
+    ai: { icon: <WifiOff className="size-5" />, key: 'ai' },
+    network: { icon: <AlertTriangle className="size-5" />, key: 'network' },
   }[kind];
 
   return (
@@ -85,12 +71,12 @@ export function ErrorState({
       <div className="mb-3 flex size-11 items-center justify-center rounded-full bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400">
         {config.icon}
       </div>
-      <p className="text-sm font-medium text-text">{config.title}</p>
-      <p className="mt-1 max-w-sm text-xs text-text-muted">{message ?? config.description}</p>
+      <p className="text-sm font-medium text-text">{t(`error.${config.key}.title`)}</p>
+      <p className="mt-1 max-w-sm text-xs text-text-muted">{message ?? t(`error.${config.key}.body`)}</p>
       <div className="mt-4">
         {action ?? (
           <Link href="/" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
-            Back to home
+            {t('action.backHome')}
           </Link>
         )}
       </div>
@@ -102,21 +88,20 @@ export function ErrorState({
 export function ForbiddenPage({ what }: { what?: string }) {
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
-      <ErrorState
-        kind="permission"
-        message={
-          what
-            ? `Your role does not include access to ${what}. If you need it, ask an administrator to update your role.`
-            : undefined
-        }
-      />
+      <ForbiddenBody what={what} />
     </div>
   );
 }
 
+function ForbiddenBody({ what }: { what?: string }) {
+  const t = useT();
+  return <ErrorState kind="permission" message={what ? t('error.permission.what', { what }) : undefined} />;
+}
+
 export function TableSkeleton({ rows = 8, cols = 6 }: { rows?: number; cols?: number }) {
+  const t = useT();
   return (
-    <div className="divide-y divide-border-subtle" aria-busy="true" aria-label="Loading">
+    <div className="divide-y divide-border-subtle" aria-busy="true" aria-label={t('state.loading')}>
       {Array.from({ length: rows }).map((_, r) => (
         <div key={r} className="flex items-center gap-4 px-4 py-3">
           {Array.from({ length: cols }).map((_, c) => (

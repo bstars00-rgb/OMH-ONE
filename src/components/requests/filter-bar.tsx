@@ -4,7 +4,8 @@ import * as React from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Filter, X } from 'lucide-react';
 import { Button, Input, Select } from '@/components/ui/primitives';
-import { REQUEST_TYPES, REQUEST_TYPE_META, REQUEST_STATUSES, STATUS_META, PRIORITIES, RISK_LEVELS } from '@/types/domain';
+import { useT } from '@/lib/i18n/client';
+import { REQUEST_TYPES, REQUEST_STATUSES, PRIORITIES, RISK_LEVELS } from '@/types/domain';
 
 export interface FilterOption {
   value: string;
@@ -32,6 +33,7 @@ export function FilterBar({
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const t = useT();
   const [expanded, setExpanded] = React.useState(false);
   const [q, setQ] = React.useState(params.get('q') ?? '');
 
@@ -50,8 +52,8 @@ export function FilterBar({
   React.useEffect(() => {
     const current = params.get('q') ?? '';
     if (q === current) return;
-    const t = setTimeout(() => set('q', q), 350);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => set('q', q), 350);
+    return () => clearTimeout(timer);
   }, [q, params, set]);
 
   const activeKeys = ['type', 'status', 'risk', 'priority', 'departmentId', 'requesterId', 'from', 'to', 'minAmount', 'maxAmount', 'q'];
@@ -68,8 +70,8 @@ export function FilterBar({
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search title, request number or description…"
-          aria-label="Search requests"
+          placeholder={t('filter.searchRequests')}
+          aria-label={t('filter.searchAria')}
           className="h-8 max-w-xs flex-1"
         />
 
@@ -77,13 +79,13 @@ export function FilterBar({
           <Select
             value={params.get('type') ?? ''}
             onChange={(e) => set('type', e.target.value)}
-            aria-label="Filter by request type"
+            aria-label={t('filter.byType')}
             className="h-8 w-auto min-w-32"
           >
-            <option value="">All types</option>
-            {REQUEST_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {REQUEST_TYPE_META[t].label}
+            <option value="">{t('label.allTypes')}</option>
+            {REQUEST_TYPES.map((x) => (
+              <option key={x} value={x}>
+                {t(`type.${x}`)}
               </option>
             ))}
           </Select>
@@ -93,13 +95,13 @@ export function FilterBar({
           <Select
             value={params.get('status') ?? ''}
             onChange={(e) => set('status', e.target.value)}
-            aria-label="Filter by status"
+            aria-label={t('filter.byStatus')}
             className="h-8 w-auto min-w-32"
           >
-            <option value="">All statuses</option>
-            {REQUEST_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_META[s].label}
+            <option value="">{t('label.allStatuses')}</option>
+            {REQUEST_STATUSES.map((x) => (
+              <option key={x} value={x}>
+                {t(`status.${x}`)}
               </option>
             ))}
           </Select>
@@ -109,26 +111,25 @@ export function FilterBar({
           <Select
             value={params.get('risk') ?? ''}
             onChange={(e) => set('risk', e.target.value)}
-            aria-label="Filter by AI risk"
+            aria-label={t('filter.byRisk')}
             className="h-8 w-auto min-w-28"
           >
-            <option value="">Any risk</option>
-            {RISK_LEVELS.map((r) => (
-              <option key={r} value={r}>
-                {r.charAt(0)}
-                {r.slice(1).toLowerCase()} risk
+            <option value="">{t('label.anyRisk')}</option>
+            {RISK_LEVELS.map((x) => (
+              <option key={x} value={x}>
+                {t(`risk.${x}`)}
               </option>
             ))}
           </Select>
         )}
 
         <Button size="sm" variant={expanded ? 'primary' : 'secondary'} onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
-          <Filter /> More
+          <Filter /> {t('action.more')}
         </Button>
 
         {activeCount > 0 && (
           <Button size="sm" variant="ghost" onClick={clearAll}>
-            <X /> Clear {activeCount}
+            <X /> {t('filter.clearCount', { count: activeCount })}
           </Button>
         )}
       </div>
@@ -137,9 +138,9 @@ export function FilterBar({
         <div className="grid gap-2 rounded-[var(--radius-card)] border border-border-subtle bg-surface p-3 sm:grid-cols-2 lg:grid-cols-4">
           {departments && departments.length > 0 && (
             <label className="block">
-              <span className="mb-1 block text-[11px] font-medium text-text-muted">Department</span>
+              <span className="mb-1 block text-[11px] font-medium text-text-muted">{t('label.department')}</span>
               <Select value={params.get('departmentId') ?? ''} onChange={(e) => set('departmentId', e.target.value)} className="h-8">
-                <option value="">All departments</option>
+                <option value="">{t('label.allDepartments')}</option>
                 {departments.map((d) => (
                   <option key={d.value} value={d.value}>
                     {d.label}
@@ -151,9 +152,9 @@ export function FilterBar({
 
           {requesters && requesters.length > 0 && (
             <label className="block">
-              <span className="mb-1 block text-[11px] font-medium text-text-muted">Requester</span>
+              <span className="mb-1 block text-[11px] font-medium text-text-muted">{t('label.requester')}</span>
               <Select value={params.get('requesterId') ?? ''} onChange={(e) => set('requesterId', e.target.value)} className="h-8">
-                <option value="">Anyone</option>
+                <option value="">{t('label.anyone')}</option>
                 {requesters.map((r) => (
                   <option key={r.value} value={r.value}>
                     {r.label}
@@ -164,30 +165,29 @@ export function FilterBar({
           )}
 
           <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-text-muted">Priority</span>
+            <span className="mb-1 block text-[11px] font-medium text-text-muted">{t('label.priority')}</span>
             <Select value={params.get('priority') ?? ''} onChange={(e) => set('priority', e.target.value)} className="h-8">
-              <option value="">Any priority</option>
+              <option value="">{t('label.anyPriority')}</option>
               {PRIORITIES.map((p) => (
                 <option key={p} value={p}>
-                  {p.charAt(0)}
-                  {p.slice(1).toLowerCase()}
+                  {t(`priority.${p}`)}
                 </option>
               ))}
             </Select>
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-text-muted">Submitted from</span>
+            <span className="mb-1 block text-[11px] font-medium text-text-muted">{t('filter.submittedFrom')}</span>
             <Input type="date" value={params.get('from') ?? ''} onChange={(e) => set('from', e.target.value)} className="h-8" />
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-text-muted">Submitted to</span>
+            <span className="mb-1 block text-[11px] font-medium text-text-muted">{t('filter.submittedTo')}</span>
             <Input type="date" value={params.get('to') ?? ''} onChange={(e) => set('to', e.target.value)} className="h-8" />
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-text-muted">Minimum amount (USD)</span>
+            <span className="mb-1 block text-[11px] font-medium text-text-muted">{t('filter.minAmount')}</span>
             <Input
               type="number"
               min={0}
@@ -199,7 +199,7 @@ export function FilterBar({
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-text-muted">Maximum amount (USD)</span>
+            <span className="mb-1 block text-[11px] font-medium text-text-muted">{t('filter.maxAmount')}</span>
             <Input
               type="number"
               min={0}

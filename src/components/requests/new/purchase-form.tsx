@@ -6,9 +6,10 @@ import { Button, Card, CardBody, CardHeader, Field, Input, Select, Textarea } fr
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
 import { createPurchaseAction } from '@/server/actions/create';
 import { toISODate } from '@/lib/dates';
-import { formatMoney, round2 } from '@/lib/money';
+import { round2 } from '@/lib/money';
+import { useI18n } from '@/lib/i18n/client';
+import { formatMoneyL } from '@/lib/i18n/format';
 import { CURRENCIES, PURCHASE_CATEGORIES } from '@/types/domain';
-import { humanize } from '@/lib/utils';
 
 interface ItemLine {
   key: string;
@@ -31,6 +32,7 @@ export function PurchaseForm({
 }: {
   vendors: { id: string; name: string; category: string | null; isPreferred: boolean }[];
 }) {
+  const { t, locale } = useI18n();
   const today = toISODate(new Date());
   const [category, setCategory] = React.useState<string>('IT');
   const [vendorId, setVendorId] = React.useState('');
@@ -41,6 +43,7 @@ export function PurchaseForm({
   const [items, setItems] = React.useState<ItemLine[]>([newItem()]);
 
   const { pending, result, errors, run } = useCreateForm();
+  const money = (v: number) => formatMoneyL(locale, v, currency);
 
   const total = round2(items.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0), 0));
   const quotes = Number(quotationCount) || 0;
@@ -92,21 +95,26 @@ export function PurchaseForm({
         <AiDraftBox type="PURCHASE" onDraft={applyDraft} />
 
         <Card>
-          <CardHeader title="Purchase detail" icon={<ShoppingCart className="size-4" />} />
+          <CardHeader title={t('prForm.detail')} icon={<ShoppingCart className="size-4" />} />
           <CardBody className="grid gap-4 sm:grid-cols-2">
-            <Field label="Category" htmlFor="category" required error={errors.category}>
+            <Field label={t('label.category')} htmlFor="category" required error={errors.category}>
               <Select id="category" value={category} onChange={(e) => setCategory(e.target.value)}>
                 {PURCHASE_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
-                    {humanize(c)}
+                    {t(`purchaseCategory.${c}`)}
                   </option>
                 ))}
               </Select>
             </Field>
 
-            <Field label="Vendor" htmlFor="vendorId" hint="Preferred vendors are listed first." error={errors.vendorId}>
+            <Field
+              label={t('content.vendor')}
+              htmlFor="vendorId"
+              hint={t('prForm.vendorHint')}
+              error={errors.vendorId}
+            >
               <Select id="vendorId" value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
-                <option value="">Not selected</option>
+                <option value="">{t('content.noVendor')}</option>
                 {vendors.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.isPreferred ? '★ ' : ''}
@@ -117,14 +125,14 @@ export function PurchaseForm({
               </Select>
             </Field>
 
-            <Field label="Needed by" htmlFor="requiredDate" error={errors.requiredDate}>
+            <Field label={t('prForm.neededBy')} htmlFor="requiredDate" error={errors.requiredDate}>
               <Input id="requiredDate" type="date" min={today} value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} />
             </Field>
 
             <Field
-              label="Quotations attached"
+              label={t('prForm.quotationsLabel')}
               htmlFor="quotationCount"
-              hint="Two are required above $3,000."
+              hint={t('prForm.quotationsHint')}
               error={errors.quotationCount}
             >
               <Input
@@ -137,13 +145,13 @@ export function PurchaseForm({
               />
             </Field>
 
-            <Field label="Purpose" htmlFor="purpose" required className="sm:col-span-2" error={errors.purpose}>
+            <Field label={t('label.purpose')} htmlFor="purpose" required className="sm:col-span-2" error={errors.purpose}>
               <Textarea
                 id="purpose"
                 rows={3}
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
-                placeholder="Why is this needed, and what happens if it is not approved?"
+                placeholder={t('prForm.purposePlaceholder')}
               />
             </Field>
           </CardBody>
@@ -151,10 +159,10 @@ export function PurchaseForm({
 
         <Card>
           <CardHeader
-            title="Line items"
+            title={t('prForm.lineItems')}
             actions={
               <Button size="sm" variant="secondary" onClick={() => setItems((p) => [...p, newItem()])}>
-                <Plus /> Add item
+                <Plus /> {t('prForm.addItem')}
               </Button>
             }
           />
@@ -164,34 +172,34 @@ export function PurchaseForm({
               return (
                 <div key={line.key} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_7rem_6rem_auto]">
                   <Input
-                    aria-label={`Item name ${i + 1}`}
-                    placeholder="Item"
+                    aria-label={t('prForm.itemName', { n: i + 1 })}
+                    placeholder={t('content.item')}
                     value={line.itemName}
                     onChange={(e) => setItems((p) => p.map((x) => (x.key === line.key ? { ...x, itemName: e.target.value } : x)))}
                   />
                   <Input
-                    aria-label={`Quantity ${i + 1}`}
+                    aria-label={t('prForm.quantityAria', { n: i + 1 })}
                     type="number"
                     min={1}
                     value={line.quantity}
                     onChange={(e) => setItems((p) => p.map((x) => (x.key === line.key ? { ...x, quantity: e.target.value } : x)))}
                   />
                   <Input
-                    aria-label={`Unit price ${i + 1}`}
+                    aria-label={t('prForm.unitPriceAria', { n: i + 1 })}
                     type="number"
                     min={0}
                     step="0.01"
-                    placeholder="Unit price"
+                    placeholder={t('content.unitPrice')}
                     value={line.unitPrice}
                     onChange={(e) => setItems((p) => p.map((x) => (x.key === line.key ? { ...x, unitPrice: e.target.value } : x)))}
                   />
                   <span className="flex h-9 items-center justify-end px-1 text-xs font-medium text-text tabular">
-                    {formatMoney(lineTotal, currency)}
+                    {money(lineTotal)}
                   </span>
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={`Remove item ${i + 1}`}
+                    aria-label={t('prForm.removeItem', { n: i + 1 })}
                     disabled={items.length === 1}
                     onClick={() => setItems((p) => p.filter((x) => x.key !== line.key))}
                   >
@@ -203,14 +211,14 @@ export function PurchaseForm({
             <FieldError id="items-error" message={errors.items} />
 
             <div className="flex items-center justify-between border-t border-border-subtle pt-2.5">
-              <Select aria-label="Currency" value={currency} onChange={(e) => setCurrency(e.target.value)} className="h-8 w-24">
+              <Select aria-label={t('label.currency')} value={currency} onChange={(e) => setCurrency(e.target.value)} className="h-8 w-24">
                 {CURRENCIES.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
               </Select>
-              <p className="text-sm font-semibold text-text tabular">Total {formatMoney(total, currency)}</p>
+              <p className="text-sm font-semibold text-text tabular">{t('tripForm.totalLine', { amount: money(total) })}</p>
             </div>
           </CardBody>
         </Card>
@@ -228,24 +236,18 @@ export function PurchaseForm({
 
       <aside>
         <Card className="sticky top-20">
-          <CardHeader title="Before you submit" />
+          <CardHeader title={t('prForm.beforeSubmit')} />
           <CardBody className="space-y-2 text-xs">
             <p className="text-text-muted">
-              Total <span className="font-semibold text-text tabular">{formatMoney(total, currency)}</span>
+              {t('label.total')} <span className="font-semibold text-text tabular">{money(total)}</span>
             </p>
             {needsTwoQuotes && (
               <p className="rounded border border-rose-200 bg-rose-50 px-2 py-1.5 text-[11px] text-rose-800 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300">
-                Above $3,000 with only {quotes} quotation. Company policy requires two — Finance will block this
-                otherwise.
+                {t('prForm.needTwoQuotes', { count: quotes })}
               </p>
             )}
-            {total > 1000 && (
-              <p className="text-[11px] text-text-subtle">Above $1,000 — routes to the Director after Finance.</p>
-            )}
-            <p className="text-[11px] text-text-subtle">
-              The approver will see this priced against previous purchases of the same item and against your
-              department&apos;s remaining budget.
-            </p>
+            {total > 1000 && <p className="text-[11px] text-text-subtle">{t('prForm.directorNote')}</p>}
+            <p className="text-[11px] text-text-subtle">{t('prForm.approverNote')}</p>
           </CardBody>
         </Card>
       </aside>

@@ -1,10 +1,10 @@
 import * as React from 'react';
 import Link from 'next/link';
-import { monthLabel } from '@/lib/dates';
 import { CategoryBars, ChartCard, SpendLine } from '@/components/charts';
 import { Card, CardHeader } from '@/components/ui/primitives';
+import { getI18n } from '@/lib/i18n/server';
+import { formatMoneyL, monthLabelL } from '@/lib/i18n/format';
 import { humanize } from '@/lib/utils';
-import { formatMoney } from '@/lib/money';
 
 /**
  * Shared pieces for the module dashboards (travel, procurement, expense, leave).
@@ -12,7 +12,7 @@ import { formatMoney } from '@/lib/money';
  * user who learns one page has learned all four.
  */
 
-export function MonthlySpendChart({
+export async function MonthlySpendChart({
   title,
   subtitle,
   monthly,
@@ -25,41 +25,54 @@ export function MonthlySpendChart({
   current: number;
   previous: number;
 }) {
+  const { t, locale } = await getI18n();
   const delta = previous > 0 ? Math.round(((current - previous) / previous) * 100) : null;
+
   return (
     <ChartCard
       title={title}
       subtitle={subtitle}
-      metric={formatMoney(current)}
-      delta={delta === null ? null : { value: delta, label: 'vs last month' }}
+      metric={formatMoneyL(locale, current)}
+      delta={delta === null ? null : { value: delta, label: t('label.vsLastMonth') }}
       isEmpty={monthly.length === 0}
     >
-      <SpendLine data={monthly.map((m) => ({ label: monthLabel(m.month), spend: m.value }))} />
+      <SpendLine data={monthly.map((m) => ({ label: monthLabelL(locale, m.month), spend: m.value }))} />
     </ChartCard>
   );
 }
 
-export function BreakdownChart({
+export async function BreakdownChart({
   title,
   subtitle,
   data,
   money = true,
-  humanizeNames = true,
+  nameKey,
 }: {
   title: string;
   subtitle: string;
   data: { name: string; value: number; count?: number }[];
   money?: boolean;
-  humanizeNames?: boolean;
+  /**
+   * Dictionary prefix for the category axis, e.g. `purchaseCategory`. Names that
+   * have no entry (a country, a person) fall back to the raw value, so callers
+   * whose axis is already proper nouns simply omit this.
+   */
+  nameKey?: string;
 }) {
+  const { tOr, locale } = await getI18n();
+  const total = data.reduce((s, d) => s + d.value, 0);
+
   return (
     <ChartCard
       title={title}
       subtitle={subtitle}
-      metric={money ? formatMoney(data.reduce((s, d) => s + d.value, 0)) : String(data.reduce((s, d) => s + d.value, 0))}
+      metric={money ? formatMoneyL(locale, total) : String(total)}
       isEmpty={data.length === 0}
     >
-      <CategoryBars data={data.map((d) => ({ ...d, name: humanizeNames ? humanize(d.name) : d.name }))} money={money} />
+      <CategoryBars
+        data={data.map((d) => ({ ...d, name: nameKey ? tOr(`${nameKey}.${d.name}`, humanize(d.name)) : d.name }))}
+        money={money}
+      />
     </ChartCard>
   );
 }

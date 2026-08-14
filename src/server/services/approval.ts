@@ -79,7 +79,7 @@ async function approverDirectory(tx: Tx, requesterId: string) {
     .from(employees)
     .where(eq(employees.id, requesterId))
     .limit(1);
-  if (!requester) throw new WorkflowError('Requester not found.');
+  if (!requester) throw new WorkflowError('wfError.requesterMissing');
 
   const [dept] = requester.departmentId
     ? await tx
@@ -150,10 +150,10 @@ export async function submitRequest(session: SessionUser, requestId: string) {
 
   return db.transaction(async (tx) => {
     const [req] = await tx.select().from(requests).where(eq(requests.id, requestId)).limit(1).for('update');
-    if (!req) throw new WorkflowError('Request not found.');
-    if (req.requesterId !== session.employeeId) throw new PermissionError('Only the requester can submit this request.');
+    if (!req) throw new WorkflowError('wfError.notFound');
+    if (req.requesterId !== session.employeeId) throw new PermissionError('wfError.onlyRequesterSubmit');
     if (!canTransition('SUBMIT', req.status as never)) {
-      throw new WorkflowError(`A request with status ${req.status} cannot be submitted.`);
+      throw new WorkflowError('wfError.badStatus', { status: `status.${req.status}`, action: 'wfAction.submitted' });
     }
 
     const amountBase = Number(req.amountBase);
@@ -166,7 +166,7 @@ export async function submitRequest(session: SessionUser, requestId: string) {
       .where(and(eq(approvalWorkflows.requestType, req.requestType), eq(approvalWorkflows.isActive, true)))
       .orderBy(sql`${approvalWorkflows.isDefault} desc`)
       .limit(1);
-    if (!workflow) throw new WorkflowError(`No active approval workflow is configured for ${req.requestType}.`);
+    if (!workflow) throw new WorkflowError('wfError.noWorkflow');
 
     const templates = await tx
       .select()
@@ -188,9 +188,7 @@ export async function submitRequest(session: SessionUser, requestId: string) {
     );
 
     if (chain.length === 0) {
-      throw new WorkflowError(
-        'No approver could be resolved for this request. Check that your manager and department head are set.',
-      );
+      throw new WorkflowError('wfError.noApprover');
     }
 
     // Resubmitting a RETURNED request rebuilds the chain from step 1; the prior
@@ -281,7 +279,9 @@ export async function submitRequest(session: SessionUser, requestId: string) {
 export interface DecisionResult {
   status: string;
   requestNumber: string;
-  message: string;
+  /** i18n key; `messageVars` fills its placeholders. */
+  messageKey: string;
+  messageVars?: Record<string, string | number>;
 }
 
 export async function decideRequest(
@@ -291,11 +291,7 @@ export async function decideRequest(
   comment?: string | null,
 ): Promise<DecisionResult> {
   if ((action === 'REJECT' || action === 'RETURN') && !comment?.trim()) {
-    throw new WorkflowError(
-      action === 'REJECT'
-        ? 'A reason is required when rejecting a request.'
-        : 'Explain what needs to change before returning the request.',
-    );
+    throw new WorkflowError(action === 'REJECT' ? 'wfError.rejectNeedsReason' : 'wfError.returnNeedsReason');
   }
 
   const db = await ready();
@@ -303,9 +299,9 @@ export async function decideRequest(
   return db.transaction(async (tx) => {
     // Row lock: two approvers clicking at the same moment must not both win.
     const [req] = await tx.select().from(requests).where(eq(requests.id, requestId)).limit(1).for('update');
-    if (!req) throw new WorkflowError('Request not found.');
+    if (!req) throw new WorkflowError('wfError.notFound');
     if (!canTransition(action, req.status as never)) {
-      throw new WorkflowError('This request has already been decided.');
+      throw new WorkflowError('wfError.alreadyDecided');
     }
 
     const [step] = await tx
@@ -314,7 +310,7 @@ export async function decideRequest(
       .where(and(eq(approvalSteps.requestId, requestId), eq(approvalSteps.stepOrder, req.currentStepOrder)))
       .limit(1);
 
-    if (!step) throw new WorkflowError('No approval step is awaiting a decision.');
+    if (!step) throw new WorkflowError('wfError.noStepPending');
     if (!canActOnStep(session, step)) {
       await recordAudit(tx as unknown as Database, {
         action: 'PERMISSION_DENIED',
@@ -324,7 +320,7 @@ export async function decideRequest(
         actorEmail: session.email,
         summary: `Attempted ${action} on ${req.requestNumber} without authority`,
       });
-      throw new PermissionError('You are not the approver for the current step of this request.');
+      throw new PermissionError('wfError.notApprover');
     }
 
     const now = new Date();
@@ -349,7 +345,8 @@ export async function decideRequest(
 
     const forReservation = await loadRequestForReservation(tx, requestId);
     let status = req.status;
-    let message = '';
+    let messageKey = '';
+    let messageVars: Record<string, string | number> | undefined;
 
     if (action === 'APPROVE') {
       const [next] = await tx
@@ -369,7 +366,8 @@ export async function decideRequest(
           .set({ status: 'IN_REVIEW', currentStepOrder: next.stepOrder, dueAt, updatedAt: now })
           .where(eq(requests.id, requestId));
         status = 'IN_REVIEW';
-        message = `Approved. Sent to ${next.name}.`;
+        messageKey = 'decide.approvedNext';
+        messageVars = { step: next.name };
 
         if (next.approverId) {
           await tx.insert(notifications).values({
@@ -388,7 +386,7 @@ export async function decideRequest(
           .where(eq(requests.id, requestId));
         if (forReservation) await commit(tx, forReservation, now);
         status = 'APPROVED';
-        message = 'Approved. This was the final step.';
+        messageKey = 'decide.approvedFinal';
 
         await tx.insert(notifications).values({
           employeeId: req.requesterId,
@@ -410,7 +408,7 @@ export async function decideRequest(
         .where(eq(requests.id, requestId));
       if (forReservation) await release(tx, forReservation, now);
       status = 'REJECTED';
-      message = 'Request rejected. The requester has been notified.';
+      messageKey = 'decide.rejected';
 
       await tx.insert(notifications).values({
         employeeId: req.requesterId,
@@ -431,7 +429,7 @@ export async function decideRequest(
         .where(eq(requests.id, requestId));
       if (forReservation) await release(tx, forReservation, now);
       status = 'RETURNED';
-      message = 'Returned to the requester for correction.';
+      messageKey = 'decide.returned';
 
       await tx.insert(notifications).values({
         employeeId: req.requesterId,
@@ -453,7 +451,7 @@ export async function decideRequest(
       metadata: { comment: comment ?? null, delegated: isDelegated, resultingStatus: status },
     });
 
-    return { status, requestNumber: req.requestNumber, message };
+    return { status, requestNumber: req.requestNumber, messageKey, messageVars };
   });
 }
 
@@ -466,12 +464,12 @@ export async function cancelRequest(session: SessionUser, requestId: string, rea
 
   return db.transaction(async (tx) => {
     const [req] = await tx.select().from(requests).where(eq(requests.id, requestId)).limit(1).for('update');
-    if (!req) throw new WorkflowError('Request not found.');
+    if (!req) throw new WorkflowError('wfError.notFound');
     if (!canCancelRequest(session, req)) {
-      throw new PermissionError('Only the requester can cancel this request, and only before it is decided.');
+      throw new PermissionError('wfError.onlyRequesterCancel');
     }
     if (!canTransition('CANCEL', req.status as never)) {
-      throw new WorkflowError(`A request with status ${req.status} cannot be canceled.`);
+      throw new WorkflowError('wfError.badStatus', { status: `status.${req.status}`, action: 'wfAction.canceled' });
     }
 
     const now = new Date();
@@ -563,8 +561,8 @@ export async function markStepInReview(session: SessionUser, requestId: string) 
 
 export async function addComment(session: SessionUser, requestId: string, body: string, mentions: string[] = []) {
   const trimmed = body.trim();
-  if (!trimmed) throw new WorkflowError('Comment cannot be empty.');
-  if (trimmed.length > 4000) throw new WorkflowError('Comment is too long (4,000 characters maximum).');
+  if (!trimmed) throw new WorkflowError('wfError.emptyComment');
+  if (trimmed.length > 4000) throw new WorkflowError('wfError.commentTooLong');
 
   const db = await ready();
   await db.insert(comments).values({

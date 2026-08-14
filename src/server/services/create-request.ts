@@ -133,7 +133,7 @@ export async function createLeave(session: SessionUser, input: LeaveInput) {
     );
 
     if (calc.workingDays <= 0) {
-      throw new ValidationError('That range contains no working days — it is all weekend or public holiday.');
+      throw new ValidationError('leaveForm.noWorkingDays');
     }
 
     const base = await insertBase(tx, session, {
@@ -404,10 +404,13 @@ function humanLeave(t: string) {
   return t.charAt(0) + t.slice(1).toLowerCase() + ' leave';
 }
 
+/** Carries an i18n key, like WorkflowError and PermissionError. */
 export class ValidationError extends Error {
   readonly code = 'VALIDATION';
-  constructor(message: string) {
-    super(message);
+  readonly vars?: Record<string, string | number>;
+  constructor(messageKey: string, vars?: Record<string, string | number>) {
+    super(messageKey);
     this.name = 'ValidationError';
+    this.vars = vars;
   }
 }

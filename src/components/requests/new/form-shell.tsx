@@ -5,22 +5,13 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, CheckCircle2, Loader2, Save, Send, Sparkles, Wand2 } from 'lucide-react';
 import { Button, Card, CardBody, CardHeader, Textarea } from '@/components/ui/primitives';
 import { draftFromTextAction, type CreateResult } from '@/server/actions/create';
+import { useT } from '@/lib/i18n/client';
 import { cn } from '@/lib/utils';
 import type { RequestType } from '@/types/domain';
 
 /* ------------------------------------------------------------------ */
 /* AI draft box — shared by every form                                 */
 /* ------------------------------------------------------------------ */
-
-const EXAMPLES: Partial<Record<RequestType, string>> = {
-  BUSINESS_TRIP:
-    'Sang and Calvin travel to Seoul 10–12 September for the AI workshop. Flights VN425 and VN669, 2 nights hotel.',
-  LEAVE: 'Annual leave 14 to 18 September, family holiday.',
-  PURCHASE: '3 MacBook Pro 14" from Saigon Tech Supply for the new engineers, about $1,130 each.',
-  EXPENSE: 'Client dinner at Jungsik on 2 September, $148, plus airport taxi $32.',
-  HR: 'I need an employment certificate for a visa application by the end of the month.',
-  GENERAL: 'Renew the office liability insurance for the Vietnam office, around $3,200.',
-};
 
 export function AiDraftBox({
   type,
@@ -29,6 +20,11 @@ export function AiDraftBox({
   type: RequestType;
   onDraft: (fields: Record<string, unknown>) => void;
 }) {
+  const t = useT();
+  // Examples are per-type and per-language: the Korean sample has to parse under
+  // the Korean date patterns the extractor understands.
+  const example = t(`draft.example.${type}`);
+
   const [text, setText] = React.useState('');
   const [pending, setPending] = React.useState(false);
   const [result, setResult] = React.useState<{
@@ -52,8 +48,8 @@ export function AiDraftBox({
   return (
     <Card className="border-accent-border bg-accent-soft/30">
       <CardHeader
-        title="Draft with AI"
-        description="Describe it in a sentence. The form fills in, then you check every field before submitting."
+        title={t('draft.title')}
+        description={t('draft.subtitle')}
         icon={<Sparkles className="size-4 text-accent" />}
       />
       <CardBody className="space-y-2.5">
@@ -62,22 +58,18 @@ export function AiDraftBox({
           onChange={(e) => setText(e.target.value)}
           rows={2}
           maxLength={1500}
-          placeholder={EXAMPLES[type] ?? 'Describe what you need…'}
-          aria-label="Describe the request in your own words"
+          placeholder={example || t('draft.placeholder')}
+          aria-label={t('draft.aria')}
           disabled={pending}
         />
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="primary" size="sm" onClick={generate} disabled={pending || text.trim().length < 10}>
             {pending ? <Loader2 className="animate-spin" /> : <Wand2 />}
-            {pending ? 'Reading…' : 'Fill the form'}
+            {pending ? t('state.reading') : t('draft.fill')}
           </Button>
-          {EXAMPLES[type] && !text && (
-            <button
-              type="button"
-              onClick={() => setText(EXAMPLES[type]!)}
-              className="text-[11px] text-accent hover:underline"
-            >
-              Use an example
+          {example && !text && (
+            <button type="button" onClick={() => setText(example)} className="text-[11px] text-accent hover:underline">
+              {t('draft.useExample')}
             </button>
           )}
         </div>
@@ -94,11 +86,11 @@ export function AiDraftBox({
           >
             <p className="font-medium">{result.message}</p>
             {result.confidence !== undefined && result.ok && (
-              <p>Extraction confidence {result.confidence}% — lower confidence means check more carefully.</p>
+              <p>{t('draft.confidence', { pct: result.confidence })}</p>
             )}
             {result.notes?.map((n) => <p key={n}>{n}</p>)}
             {result.missing && result.missing.length > 0 && (
-              <p className="font-medium">Could not determine: {result.missing.join(', ')}. Fill these in yourself.</p>
+              <p className="font-medium">{t('draft.missing', { fields: result.missing.join(', ') })}</p>
             )}
           </div>
         )}
@@ -125,6 +117,7 @@ export function FormActions({
   disabled?: boolean;
 }) {
   const router = useRouter();
+  const t = useT();
 
   React.useEffect(() => {
     if (result?.ok && result.requestId) {
@@ -148,18 +141,18 @@ export function FormActions({
         >
           {result.ok ? <CheckCircle2 className="size-4 shrink-0" /> : <AlertCircle className="size-4 shrink-0" />}
           {result.message}
-          {result.ok && <span className="text-text-muted">Opening the request…</span>}
+          {result.ok && <span className="text-text-muted">{t('state.opening')}</span>}
         </p>
       )}
 
       <div className="flex flex-wrap justify-end gap-2">
         <Button variant="secondary" onClick={onSave} disabled={pending !== null || disabled}>
           {pending === 'save' ? <Loader2 className="animate-spin" /> : <Save />}
-          Save as draft
+          {t('action.saveDraft')}
         </Button>
         <Button variant="primary" onClick={onSubmit} disabled={pending !== null || disabled}>
           {pending === 'submit' ? <Loader2 className="animate-spin" /> : <Send />}
-          Submit for approval
+          {t('action.submit')}
         </Button>
       </div>
     </div>

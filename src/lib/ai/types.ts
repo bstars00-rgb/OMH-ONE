@@ -192,6 +192,8 @@ export interface RequestContext {
 export interface AiLocaleContext {
   locale: Locale;
   t: (key: string, vars?: Record<string, string | number>) => string;
+  /** For values that come from the database — falls back to the stored text. */
+  tOr: (key: string, fallback: string, vars?: Record<string, string | number>) => string;
   money: (amount: number | string | null | undefined, currency?: string) => string;
   date: (value: Date | string | null | undefined) => string;
   range: (start: string, end: string) => string;

@@ -104,15 +104,18 @@ function isMutating(c: Capability) {
 
 export function assertCan(session: SessionUser, capability: Capability) {
   if (!can(session, capability)) {
-    throw new PermissionError(`Your role does not allow this action (${capability}).`);
+    throw new PermissionError('wfError.noPermission', { capability });
   }
 }
 
+/** Carries an i18n key, like WorkflowError. */
 export class PermissionError extends Error {
   readonly code = 'PERMISSION_DENIED';
-  constructor(message = 'You do not have permission to do this.') {
-    super(message);
+  readonly vars?: Record<string, string | number>;
+  constructor(messageKey = 'wfError.noPermission', vars?: Record<string, string | number>) {
+    super(messageKey);
     this.name = 'PermissionError';
+    this.vars = vars;
   }
 }
 

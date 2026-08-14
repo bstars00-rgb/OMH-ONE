@@ -8,12 +8,17 @@ import { PageHeader } from '@/components/page-header';
 import { ForbiddenPage } from '@/components/ui/states';
 import { UserTable } from '@/components/admin/user-table';
 import type { UserDto } from '@/components/admin/user-row';
+import { getI18n, getT } from '@/lib/i18n/server';
 
-export const metadata: Metadata = { title: 'Users' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('users.title') };
+}
 
 export default async function UsersPage() {
   const session = await requireSession();
-  if (!can(session, 'admin.users')) return <ForbiddenPage what="user administration" />;
+  const { t } = await getI18n();
+  if (!can(session, 'admin.users')) return <ForbiddenPage what={t('users.title')} />;
 
   const db = await ready();
   const [rows, roleRows] = await Promise.all([
@@ -47,8 +52,8 @@ export default async function UsersPage() {
   return (
     <>
       <PageHeader
-        title="Users"
-        description="Accounts, roles and access. A user may hold several roles; the primary role only decides their default view."
+        title={t('users.title')}
+        description={t('users.subtitle')}
       />
       <UserTable users={list} />
     </>

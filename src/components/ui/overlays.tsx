@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useT } from '@/lib/i18n/client';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import * as DropdownPrimitive from '@radix-ui/react-dropdown-menu';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
@@ -29,6 +30,7 @@ export function DialogContent({
   className?: string;
   footer?: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-zinc-950/50 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=open]:fade-in" />
@@ -50,7 +52,7 @@ export function DialogContent({
             )}
           </div>
           <DialogPrimitive.Close
-            aria-label="Close"
+            aria-label={t('action.close')}
             className="rounded p-1 text-text-subtle transition-colors hover:bg-surface-hover hover:text-text"
           >
             <X className="size-4" />
@@ -79,6 +81,7 @@ export function SheetContent({
   className?: string;
   side?: 'right' | 'left';
 }) {
+  const t = useT();
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-zinc-950/50" />
@@ -99,7 +102,7 @@ export function SheetContent({
             )}
           </div>
           <DialogPrimitive.Close
-            aria-label="Close"
+            aria-label={t('action.close')}
             className="rounded p-1 text-text-subtle transition-colors hover:bg-surface-hover hover:text-text"
           >
             <X className="size-4" />

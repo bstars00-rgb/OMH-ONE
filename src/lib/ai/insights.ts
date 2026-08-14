@@ -1,5 +1,4 @@
 import 'server-only';
-import { can } from '@/lib/rbac';
 import type { SessionUser } from '@/lib/auth/session';
 import {
   getApprovalTrend,

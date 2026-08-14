@@ -13,6 +13,11 @@
  *   4. duplicate keys silently overwritten by the namespace spread
  *   5. keys referenced in source but absent from the dictionary
  *   6. keys defined but never referenced (dead weight)
+ *   7. enum-derived key families with a missing member
+ *
+ * Check 7 exists because most domain labels are looked up as `t(\`type.${x}\`)`,
+ * which check 5 cannot see. Adding a value to an enum without adding its message
+ * used to surface as a raw "approverRole.CTO" in the UI; now it fails here.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
@@ -24,8 +29,44 @@ import { pages } from '../src/lib/i18n/messages/pages';
 import { forms } from '../src/lib/i18n/messages/forms';
 import { admin } from '../src/lib/i18n/messages/admin';
 import { ai } from '../src/lib/i18n/messages/ai';
+import {
+  APPROVER_ROLES,
+  CURRENCIES,
+  EXPENSE_CATEGORIES,
+  LEAVE_TYPES,
+  PAYMENT_METHODS,
+  PURCHASE_CATEGORIES,
+  REQUEST_STATUSES,
+  REQUEST_TYPES,
+  ROLES,
+  TRIP_COST_CATEGORIES,
+} from '../src/types/domain';
 
 const NAMESPACES = { common, domain, shell, pages, forms, admin, ai };
+
+/**
+ * Key families built from an enum at runtime.
+ *
+ * `suffixes` covers the variants a family carries (`.short`, `.desc`, `.tip`);
+ * every listed combination must exist.
+ */
+const ENUM_FAMILIES: { prefix: string; values: readonly string[]; suffixes?: string[] }[] = [
+  { prefix: 'type', values: REQUEST_TYPES, suffixes: ['', '.short'] },
+  { prefix: 'status', values: REQUEST_STATUSES, suffixes: ['', '.tip'] },
+  { prefix: 'role', values: ROLES, suffixes: ['', '.desc'] },
+  { prefix: 'approverRole', values: APPROVER_ROLES },
+  { prefix: 'leaveType', values: LEAVE_TYPES },
+  { prefix: 'expenseCategory', values: EXPENSE_CATEGORIES },
+  { prefix: 'tripCost', values: TRIP_COST_CATEGORIES },
+  { prefix: 'purchaseCategory', values: PURCHASE_CATEGORIES },
+  { prefix: 'payment', values: PAYMENT_METHODS, suffixes: ['', '.short'] },
+  { prefix: 'new.blurb', values: REQUEST_TYPES },
+  { prefix: 'new.desc', values: REQUEST_TYPES },
+  { prefix: 'draft.example', values: REQUEST_TYPES },
+];
+
+/** Currencies are rendered as their own codes, never translated. */
+void CURRENCIES;
 
 /** Identical en/ko is legitimate for these — proper nouns, codes, symbols. */
 const IDENTICAL_ALLOWED = new Set([
@@ -94,6 +135,17 @@ const defined = new Set(Object.keys(MESSAGES));
 for (const key of referenced) {
   // Dynamic keys are built as `status.${x}` and cannot be matched statically.
   if (!defined.has(key) && !key.includes('${')) problems.push(`referenced but not defined: ${key}`);
+}
+
+/* 7: enum-derived families ----------------------------------------------- */
+for (const family of ENUM_FAMILIES) {
+  for (const value of family.values) {
+    for (const suffix of family.suffixes ?? ['']) {
+      const key = `${family.prefix}.${value}${suffix}`;
+      if (!defined.has(key)) problems.push(`enum family gap: ${key} (from ${family.prefix}.*)`);
+      referenced.add(key); // built dynamically, so not "unused"
+    }
+  }
 }
 
 const unused = [...defined].filter((k) => !referenced.has(k));

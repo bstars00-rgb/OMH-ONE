@@ -1,4 +1,7 @@
+'use client';
+
 import * as React from 'react';
+import { useT } from '@/lib/i18n/client';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,10 +26,11 @@ export function PageHeader({
   meta?: React.ReactNode;
   className?: string;
 }) {
+  const t = useT();
   return (
     <div className={cn('mb-5', className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav aria-label="Breadcrumb" className="mb-1.5">
+        <nav aria-label={t('a11y.breadcrumb')} className="mb-1.5">
           <ol className="flex flex-wrap items-center gap-1 text-xs text-text-muted">
             {breadcrumbs.map((c, i) => (
               <li key={`${c.label}-${i}`} className="flex items-center gap-1">

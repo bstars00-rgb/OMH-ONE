@@ -9,10 +9,13 @@ import { PageHeader } from '@/components/page-header';
 import { ForbiddenPage, NoResults } from '@/components/ui/states';
 import { Avatar, Badge, Card } from '@/components/ui/primitives';
 import { TableWrap, THead, TH, TBody, TR, TD, Pagination } from '@/components/ui/table';
-import { formatDateTime } from '@/lib/dates';
-import { humanize } from '@/lib/utils';
+import { getI18n, getT } from '@/lib/i18n/server';
+import { formatDateTimeL } from '@/lib/i18n/format';
 
-export const metadata: Metadata = { title: 'Audit Logs' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('audit.title') };
+}
 
 const ACTION_TONE: Record<string, string> = {
   APPROVE: 'emerald',
@@ -40,7 +43,8 @@ export default async function AuditPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await requireSession();
-  if (!can(session, 'audit.view')) return <ForbiddenPage what="audit logs" />;
+  const { t, tOr, locale } = await getI18n();
+  if (!can(session, 'audit.view')) return <ForbiddenPage what={t('audit.title')} />;
 
   const sp = await searchParams;
   const one = (k: string) => {
@@ -96,20 +100,20 @@ export default async function AuditPage({
   return (
     <>
       <PageHeader
-        title="Audit Logs"
-        description="Every recorded action, newest first. Append-only — entries are never edited or removed."
+        title={t('audit.title')}
+        description={t('audit.subtitle')}
       />
 
       <form method="get" className="mb-3 flex flex-wrap items-center gap-2">
         <input
           name="q"
           defaultValue={q ?? ''}
-          placeholder="Search summary or actor email…"
-          aria-label="Search audit log"
+          placeholder={t('audit.searchPlaceholder')}
+          aria-label={t('audit.searchAria')}
           className="h-8 max-w-xs flex-1 rounded-[var(--radius-control)] border border-border-strong bg-surface px-3 text-sm text-text placeholder:text-text-subtle"
         />
         <label className="sr-only" htmlFor="action">
-          Filter by action
+          {t('audit.filterAction')}
         </label>
         <select
           id="action"
@@ -117,60 +121,68 @@ export default async function AuditPage({
           defaultValue={action ?? ''}
           className="h-8 rounded-[var(--radius-control)] border border-border-strong bg-surface px-2 text-sm text-text"
         >
-          <option value="">All actions</option>
+          <option value="">{t('audit.allActions')}</option>
           {actions.map((a) => (
             <option key={a.action} value={a.action}>
-              {humanize(a.action)} ({a.n})
+              {tOr(`audit.${a.action}`, a.action)} ({a.n})
             </option>
           ))}
         </select>
         <button type="submit" className="h-8 rounded-[var(--radius-control)] bg-accent px-3 text-xs font-medium text-accent-fg">
-          Filter
+          {t('action.filter')}
         </button>
         {(q || action) && (
           <Link href="/audit" className="text-xs text-text-muted hover:text-text hover:underline">
-            Clear
+            {t('action.clear')}
           </Link>
         )}
-        <span className="ml-auto text-xs text-text-muted tabular">{total.toLocaleString()} entries</span>
+        <span className="ml-auto text-xs text-text-muted tabular">
+          {t('audit.entries', { count: total.toLocaleString(locale) })}
+        </span>
       </form>
 
       <Card className="overflow-hidden">
         {rows.length === 0 ? (
-          <NoResults onReset={<Link href="/audit" className="text-xs text-accent hover:underline">Clear filters</Link>} />
+          <NoResults
+            onReset={
+              <Link href="/audit" className="text-xs text-accent hover:underline">
+                {t('action.clearFilters')}
+              </Link>
+            }
+          />
         ) : (
           <>
             <TableWrap>
               <THead>
                 <TR>
-                  <TH>When</TH>
-                  <TH>Actor</TH>
-                  <TH>Action</TH>
-                  <TH>Entity</TH>
-                  <TH>Summary</TH>
-                  <TH>IP</TH>
+                  <TH>{t('audit.when')}</TH>
+                  <TH>{t('audit.actor')}</TH>
+                  <TH>{t('audit.action')}</TH>
+                  <TH>{t('audit.entity')}</TH>
+                  <TH>{t('audit.summaryCol')}</TH>
+                  <TH>{t('audit.ip')}</TH>
                 </TR>
               </THead>
               <TBody>
                 {rows.map((r) => (
                   <TR key={r.id}>
-                    <TD className="whitespace-nowrap text-text-muted tabular">{formatDateTime(r.createdAt)}</TD>
+                    <TD className="whitespace-nowrap text-text-muted tabular">{formatDateTimeL(locale, r.createdAt)}</TD>
                     <TD>
                       <span className="flex items-center gap-1.5 whitespace-nowrap">
-                        <Avatar name={r.actorName ?? r.actorEmail ?? 'System'} size="xs" />
-                        <span className="truncate">{r.actorName ?? r.actorEmail ?? 'System'}</span>
+                        <Avatar name={r.actorName ?? r.actorEmail ?? t('audit.system')} size="xs" />
+                        <span className="truncate">{r.actorName ?? r.actorEmail ?? t('audit.system')}</span>
                       </span>
                     </TD>
                     <TD>
-                      <Badge tone={ACTION_TONE[r.action] ?? 'slate'}>{humanize(r.action)}</Badge>
+                      <Badge tone={ACTION_TONE[r.action] ?? 'slate'}>{tOr(`audit.${r.action}`, r.action)}</Badge>
                     </TD>
                     <TD className="text-text-muted">
                       {r.entityType === 'request' && r.entityId ? (
                         <Link href={`/requests/${r.entityId}`} className="text-accent hover:underline">
-                          request
+                          {t('audit.request')}
                         </Link>
                       ) : (
-                        humanize(r.entityType)
+                        tOr(`audit.${r.entityType}`, r.entityType)
                       )}
                     </TD>
                     <TD className="max-w-96 truncate" title={r.summary ?? undefined}>
@@ -181,16 +193,7 @@ export default async function AuditPage({
                 ))}
               </TBody>
             </TableWrap>
-            <Pagination
-              page={page}
-              pageSize={PAGE_SIZE}
-              total={total}
-              makeHref={(p) => {
-                const next = new URLSearchParams(params.toString());
-                next.set('page', String(p));
-                return `?${next.toString()}`;
-              }}
-            />
+            <Pagination page={page} pageSize={PAGE_SIZE} total={total} baseParams={params.toString()} />
           </>
         )}
       </Card>

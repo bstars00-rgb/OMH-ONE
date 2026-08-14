@@ -18,6 +18,10 @@ export const forms: MessageTable = {
     ko: '추출 신뢰도 {pct}% — 낮을수록 더 꼼꼼히 확인하세요.',
   },
   'draft.missing': { en: 'Could not determine: {fields}. Fill these in yourself.', ko: '확인하지 못한 항목: {fields}. 직접 입력해 주세요.' },
+  'draft.missing.dates': { en: 'Dates', ko: '날짜' },
+  'draft.missing.destination': { en: 'Destination', ko: '출장지' },
+  'draft.missing.amount': { en: 'Amount', ko: '금액' },
+  'draft.missing.vendor': { en: 'Vendor', ko: '공급업체' },
   'draft.tooShort': { en: 'Describe the request in a sentence or two.', ko: '한두 문장으로 설명해 주세요.' },
   'draft.tooLong': { en: 'That is too long — summarize it in a couple of sentences.', ko: '너무 깁니다. 두어 문장으로 요약해 주세요.' },
   'draft.note.singleDate': {
@@ -52,6 +56,7 @@ export const forms: MessageTable = {
   },
 
   /* --- form actions --- */
+  'form.fixHighlighted': { en: 'Please correct the highlighted fields.', ko: '표시된 항목을 수정해 주세요.' },
   'form.savedDraft': { en: '{number} saved as a draft.', ko: '{number} 임시저장되었습니다.' },
   'form.submitted': { en: '{number} submitted for approval.', ko: '{number} 결재 상신되었습니다.' },
   'form.submittedSteps': { en: '{number} submitted to {count} approval step(s).', ko: '{number} 상신 완료, 결재 단계 {count}개.' },
@@ -67,6 +72,9 @@ export const forms: MessageTable = {
   'leaveForm.halfStart': { en: 'Half day on the first day', ko: '시작일 반차' },
   'leaveForm.halfEnd': { en: 'Half day on the last day', ko: '종료일 반차' },
   'leaveForm.emergencyHint': { en: 'Optional — a number your manager can reach you on.', ko: '선택 — 상급자가 연락할 수 있는 번호입니다.' },
+  'leaveForm.remainingOf': { en: '{remaining} of {allowance} left', ko: '{allowance}일 중 {remaining}일 남음' },
+  'leaveForm.usedAria': { en: '{type} leave used', ko: '{type} 사용량' },
+  'leaveForm.usedPending': { en: '{used} used · {pending} pending approval', ko: '사용 {used}일 · 결재 대기 {pending}일' },
   'leaveForm.thisRequest': { en: 'This request', ko: '이번 신청' },
   'leaveForm.pickDates': { en: 'Pick a start and end date to see the calculation.', ko: '시작일과 종료일을 선택하면 계산 결과가 표시됩니다.' },
   'leaveForm.weekendDays': { en: 'Weekend days', ko: '주말' },
@@ -123,6 +131,8 @@ export const forms: MessageTable = {
   'tripForm.costDescription': { en: 'Cost description {n}', ko: '비용 설명 {n}' },
   'tripForm.costAmount': { en: 'Cost amount {n}', ko: '비용 금액 {n}' },
   'tripForm.removeCost': { en: 'Remove cost line {n}', ko: '비용 항목 {n} 삭제' },
+  'tripForm.hotelLine': { en: '{nights} night(s) × {rooms} room(s)', ko: '{nights}박 × {rooms}실' },
+  'tripForm.totalLine': { en: 'Total {amount}', ko: '합계 {amount}' },
   'tripForm.summary': { en: 'Summary', ko: '요약' },
   'tripForm.hotelOver': {
     en: '{rate} per night is above the $150 policy cap. You can still submit — the approver will see the difference and the reason.',
@@ -177,6 +187,8 @@ export const forms: MessageTable = {
     ko: '승인된 출장과 연결하면 출장비 집계가 누락 없이 유지됩니다.',
   },
   'expForm.notTripRelated': { en: 'Not related to a trip', ko: '출장과 무관' },
+  'expForm.approverNote': { en: 'Note for the approver', ko: '결재자 전달 메모' },
+  'expForm.fromFile': { en: 'From {file}', ko: '{file} 에서 인식' },
   'expForm.receipts': { en: 'Receipts', ko: '영수증' },
   'expForm.receiptsSub': {
     en: 'Attach receipts and the details are read into the lines below for you to check.',
@@ -247,6 +259,25 @@ export const forms: MessageTable = {
   'valid.minZero': { en: 'Must be zero or more.', ko: '0 이상이어야 합니다.' },
   'valid.badAmount': { en: 'That amount looks wrong.', ko: '금액이 올바르지 않습니다.' },
   'valid.minQuantity': { en: 'Quantity must be at least 1.', ko: '수량은 1 이상이어야 합니다.' },
+  'valid.checkField': { en: 'Check this value.', ko: '입력값을 확인하세요.' },
+  'valid.needTitle': { en: 'Give the request a short title.', ko: '기안 제목을 입력하세요.' },
+  'valid.titleTooLong': { en: 'Title is too long.', ko: '제목이 너무 깁니다.' },
+  'valid.tooLong4000': { en: 'Too long — keep it under 4,000 characters.', ko: '4,000자 이내로 입력하세요.' },
+  'valid.endBeforeStart': { en: 'The end date cannot be before the start date.', ko: '종료일은 시작일보다 빠를 수 없습니다.' },
+  'valid.returnBeforeDeparture': {
+    en: 'The return date cannot be before the departure date.',
+    ko: '귀국일은 출발일보다 빠를 수 없습니다.',
+  },
+  'valid.needCountry': { en: 'Enter the destination country.', ko: '출장 국가를 입력하세요.' },
+  'valid.needCity': { en: 'Enter the destination city.', ko: '출장 도시를 입력하세요.' },
+  'valid.needPurpose': { en: 'Explain the purpose in a sentence.', ko: '출장 목적을 한 문장으로 설명하세요.' },
+  'valid.needCostLine': { en: 'Add at least one cost line.', ko: '비용 항목을 한 건 이상 입력하세요.' },
+  'valid.needItemName': { en: 'Name the item.', ko: '품목명을 입력하세요.' },
+  'valid.needJustification': { en: 'Explain why this is needed.', ko: '구매가 필요한 사유를 설명하세요.' },
+  'valid.needLineItem': { en: 'Add at least one line item.', ko: '품목을 한 건 이상 입력하세요.' },
+  'valid.needExpenseLine': { en: 'Add at least one expense line.', ko: '경비 항목을 한 건 이상 입력하세요.' },
+  'valid.needCategory': { en: 'Choose or enter a category.', ko: '분류를 선택하거나 입력하세요.' },
+  'valid.needDetails': { en: 'Describe the request.', ko: '요청 내용을 입력하세요.' },
 
   /* --- filters --- */
   'filter.searchRequests': { en: 'Search title, request number or description…', ko: '제목, 기안번호, 내용 검색…' },

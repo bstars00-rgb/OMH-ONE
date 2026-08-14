@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Save, ShieldCheck } from 'lucide-react';
 import { Badge, Button, Card, CardBody, CardHeader, Checkbox, Input, Select, Textarea } from '@/components/ui/primitives';
 import { savePolicyAction, type AdminResult } from '@/server/actions/admin';
-import { REQUEST_TYPE_META, type RequestType } from '@/types/domain';
+import { useI18n } from '@/lib/i18n/client';
 import { cn, humanize } from '@/lib/utils';
 
 export interface PolicyDto {
@@ -33,6 +33,7 @@ const METRIC_UNIT: Record<string, string> = {
 
 export function PolicyEditor({ policy }: { policy: PolicyDto }) {
   const router = useRouter();
+  const { t, tOr } = useI18n();
   const [threshold, setThreshold] = React.useState(policy.threshold ?? '');
   const [severity, setSeverity] = React.useState(policy.severity);
   const [message, setMessage] = React.useState(policy.message);
@@ -67,15 +68,18 @@ export function PolicyEditor({ policy }: { policy: PolicyDto }) {
   return (
     <Card className={cn(!isActive && 'opacity-70')}>
       <CardHeader
-        title={policy.name}
-        description={`Applies to ${REQUEST_TYPE_META[policy.appliesTo as RequestType]?.label ?? policy.appliesTo} · ${humanize(policy.metric)}`}
+        title={tOr(`policyName.${policy.code}`, policy.name)}
+        description={t('pol.appliesTo', {
+          type: tOr(`type.${policy.appliesTo}`, policy.appliesTo),
+          metric: tOr(`policyMetric.${policy.metric}`, humanize(policy.metric)),
+        })}
         icon={<ShieldCheck className="size-4" />}
         actions={
           <span className="flex items-center gap-2">
-            <Badge tone={severity === 'BLOCKING' ? 'rose' : 'amber'}>{humanize(severity)}</Badge>
+            <Badge tone={severity === 'BLOCKING' ? 'rose' : 'amber'}>{t(`policySeverity.${severity}`)}</Badge>
             <Button size="sm" variant={dirty ? 'primary' : 'secondary'} disabled={!dirty || pending} onClick={save}>
               {pending ? <Loader2 className="animate-spin" /> : <Save />}
-              Save
+              {t('action.save')}
             </Button>
           </span>
         }
@@ -84,7 +88,8 @@ export function PolicyEditor({ policy }: { policy: PolicyDto }) {
         <div className="grid gap-3 sm:grid-cols-3">
           <label className={cn('block', !numericMetric && 'opacity-40')}>
             <span className="mb-1 block text-[11px] font-medium text-text-muted">
-              Threshold {unit && <span className="text-text-subtle">({unit})</span>}
+              {t('pol.thresholdLabel')}{' '}
+              {unit && <span className="text-text-subtle">({tOr(`policyUnit.${policy.metric}`, unit)})</span>}
             </span>
             <Input
               type="number"
@@ -98,21 +103,21 @@ export function PolicyEditor({ policy }: { policy: PolicyDto }) {
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-text-muted">Severity</span>
+            <span className="mb-1 block text-[11px] font-medium text-text-muted">{t('pol.severity')}</span>
             <Select value={severity} onChange={(e) => setSeverity(e.target.value)} className="h-8">
-              <option value="WARNING">Warning — approver may proceed</option>
-              <option value="BLOCKING">Blocking — needs an explicit override</option>
+              <option value="WARNING">{t('pol.severityWarning')}</option>
+              <option value="BLOCKING">{t('pol.severityBlocking')}</option>
             </Select>
           </label>
 
           <label className="flex items-end gap-2 pb-1.5 text-xs text-text">
             <Checkbox checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-            Policy is active
+            {t('pol.isActive')}
           </label>
         </div>
 
         <label className="block">
-          <span className="mb-1 block text-[11px] font-medium text-text-muted">Message shown to approvers</span>
+          <span className="mb-1 block text-[11px] font-medium text-text-muted">{t('pol.message')}</span>
           <Textarea rows={2} value={message} onChange={(e) => setMessage(e.target.value)} />
         </label>
 
@@ -131,10 +136,7 @@ export function PolicyEditor({ policy }: { policy: PolicyDto }) {
         )}
 
         <p className="text-[11px] text-text-subtle">
-          Code <code className="font-mono">{policy.code}</code>. Evaluated against every new request of this type and
-          re-evaluated whenever the analysis is refreshed.{' '}
-          <strong className="text-text">Blocking</strong> policies do not prevent submission — they require the approver
-          to record a reason, which is stored in the audit log.
+          <code className="font-mono">{policy.code}</code> · {t('pol.codeNote')}
         </p>
       </CardBody>
     </Card>

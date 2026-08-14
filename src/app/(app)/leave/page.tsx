@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CalendarDays, Plus } from 'lucide-react';
 import { requireSession } from '@/lib/auth/session';
-import { can, scopeLabel } from '@/lib/rbac';
+import { can, scopeLabelKey } from '@/lib/rbac';
 import { getLeaveStats } from '@/server/queries/modules';
 import { getLeaveFormData } from '@/server/queries/form-context';
 import { listRequests } from '@/server/queries/requests';
@@ -15,14 +15,18 @@ import { StatTile } from '@/components/stat-tile';
 import { BreakdownChart } from '@/components/module-page';
 import { Card, CardHeader, CardBody, Progress, buttonVariants } from '@/components/ui/primitives';
 import { TableWrap, THead, TH, TBody, TR, TD } from '@/components/ui/table';
-import { formatDate, formatRange } from '@/lib/dates';
-import { humanize } from '@/lib/utils';
+import { getI18n, getT } from '@/lib/i18n/server';
+import { formatDateL, formatRangeL } from '@/lib/i18n/format';
 
-export const metadata: Metadata = { title: 'Leave' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('leave.title') };
+}
 
 export default async function LeavePage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const session = await requireSession();
   const sp = await searchParams;
+  const { t, locale } = await getI18n();
   const seesEveryone = can(session, 'leave.manageAll');
 
   const filters = parseRequestFilters(sp, {
@@ -45,35 +49,43 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
   const avgUtil = stats.balances.length
     ? Math.round((stats.balances.reduce((s, b) => s + b.utilization, 0) / stats.balances.length) * 100)
     : 0;
+  const scope = scopeLabelKey(session);
 
   return (
     <>
       <PageHeader
-        title="Leave"
-        description={`Your balance, and leave activity across ${scopeLabel(session).toLowerCase()}.`}
+        title={t('leave.title')}
+        description={t('leave.subtitle', { scope: t(scope.key, scope.vars) })}
         actions={
           <Link href="/requests/new/LEAVE" className={buttonVariants({ variant: 'primary', size: 'md' })}>
-            <Plus /> Request leave
+            <Plus /> {t('leave.request')}
           </Link>
         }
       />
 
       {/* Your own position first — this is what most people came for */}
       <Card className="mb-5">
-        <CardHeader title="Your leave balance" description={`Entitlement for ${new Date().getUTCFullYear()}`} />
+        <CardHeader
+          title={t('leave.yourBalance')}
+          description={t('leave.entitlementFor', { year: new Date().getUTCFullYear() })}
+        />
         <CardBody className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {mine.balances.length === 0 ? (
-            <p className="text-xs text-text-muted">No balance is configured for you this year.</p>
+            <p className="text-xs text-text-muted">{t('leave.noBalance')}</p>
           ) : (
             mine.balances.map((b) => (
               <div key={b.leaveType}>
                 <div className="mb-1.5 flex items-baseline justify-between">
-                  <span className="text-xs font-medium text-text">{humanize(b.leaveType)}</span>
+                  <span className="text-xs font-medium text-text">{t(`leaveType.${b.leaveType}`)}</span>
                   <span className="text-sm font-semibold text-text tabular">{b.remaining}</span>
                 </div>
-                <Progress value={b.used + b.pending} max={b.allowance} label={`${b.leaveType} utilisation`} />
+                <Progress
+                  value={b.used + b.pending}
+                  max={b.allowance}
+                  label={t('leaveForm.usedAria', { type: t(`leaveType.${b.leaveType}`) })}
+                />
                 <p className="mt-1 text-[10px] text-text-subtle tabular">
-                  {b.used} used · {b.pending} pending · {b.allowance} total
+                  {t('leave.usedPendingTotal', { used: b.used, pending: b.pending, total: b.allowance })}
                 </p>
               </div>
             ))
@@ -84,46 +96,50 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
       {seesEveryone && (
         <>
           <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatTile label="Days taken this year" value={totalTaken} sublabel="Approved, all employees" icon="CalendarCheck" />
-            <StatTile label="Average utilisation" value={`${avgUtil}%`} sublabel="Of annual entitlement" icon="Gauge" />
             <StatTile
-              label="Away in next 30 days"
+              label={t('leave.daysTaken')}
+              value={totalTaken}
+              sublabel={t('leave.daysTakenSub')}
+              icon="CalendarCheck"
+            />
+            <StatTile label={t('leave.avgUtil')} value={`${avgUtil}%`} sublabel={t('leave.avgUtilSub')} icon="Gauge" />
+            <StatTile
+              label={t('leave.awayNext30')}
               value={new Set(upcoming.map((u) => u.employeeName)).size}
-              sublabel="People"
+              sublabel={t('label.people')}
               icon="Users"
               href="/calendar"
             />
             <StatTile
-              label="Your remaining"
+              label={t('leave.yourRemaining')}
               value={annual ? annual.remaining : '—'}
-              sublabel="Annual leave days"
+              sublabel={t('leave.yourRemainingSub')}
               icon="CalendarDays"
             />
           </div>
 
           <div className="mb-5 grid gap-4 lg:grid-cols-2">
             <BreakdownChart
-              title="Leave days by department"
-              subtitle="Approved working days this year"
+              title={t('leave.byDept')}
+              subtitle={t('leave.byDeptSub')}
               data={stats.byDepartment}
               money={false}
-              humanizeNames={false}
             />
 
             <Card>
               <CardHeader
-                title="Highest utilisation"
-                description="Employees closest to using their full entitlement"
+                title={t('leave.topUtil')}
+                description={t('leave.topUtilSub')}
               />
               <TableWrap>
                 <THead>
                   <TR>
-                    <TH>Employee</TH>
-                    <TH>Dept</TH>
-                    <TH align="right">Used</TH>
-                    <TH align="right">Pending</TH>
-                    <TH align="right">Left</TH>
-                    <TH align="right">Used %</TH>
+                    <TH>{t('label.employee')}</TH>
+                    <TH>{t('label.departmentShort')}</TH>
+                    <TH align="right">{t('leave.used')}</TH>
+                    <TH align="right">{t('leave.pending')}</TH>
+                    <TH align="right">{t('leave.left')}</TH>
+                    <TH align="right">{t('leave.usedPct')}</TH>
                   </TR>
                 </THead>
                 <TBody>
@@ -153,9 +169,9 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
       )}
 
       <Card className="mb-5">
-        <CardHeader title="Away in the next 30 days" description="Approved and pending leave in your scope" />
+        <CardHeader title={t('leave.away30')} description={t('leave.away30Sub')} />
         {upcoming.length === 0 ? (
-          <p className="px-4 py-8 text-center text-xs text-text-subtle">Nobody is scheduled to be away.</p>
+          <p className="px-4 py-8 text-center text-xs text-text-subtle">{t('leave.nobodyAway')}</p>
         ) : (
           <ul className="divide-y divide-border-subtle">
             {upcoming.map((l, i) => (
@@ -163,11 +179,11 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-medium text-text">{l.employeeName}</span>
                   <span className="block truncate text-[11px] text-text-muted">
-                    {l.departmentCode ?? '—'} · {humanize(l.leaveType)}
+                    {l.departmentCode ?? '—'} · {t(`leaveType.${l.leaveType}`)}
                   </span>
                 </span>
                 <span className="shrink-0 text-[11px] text-text-muted tabular">
-                  {formatRange(l.startDate, l.endDate)}
+                  {formatRangeL(locale, l.startDate, l.endDate)}
                 </span>
               </li>
             ))}
@@ -175,7 +191,9 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
         )}
       </Card>
 
-      <h2 className="mb-3 text-sm font-semibold text-text">{seesEveryone ? 'All leave requests' : 'Your leave requests'}</h2>
+      <h2 className="mb-3 text-sm font-semibold text-text">
+        {t(seesEveryone ? 'leave.allRequests' : 'leave.yourRequests')}
+      </h2>
       <FilterBar showType={false} showRisk={false} />
       <Card className="overflow-hidden">
         <RequestTable
@@ -183,22 +201,21 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
           total={list.total}
           page={list.page}
           pageSize={list.pageSize}
-          baseParams={params}
+          baseParams={params.toString()}
           currentSort={filters.sort}
           columns={['number', 'title', 'requester', 'department', 'status', 'submitted', 'approver', 'sla']}
-          emptyTitle="No leave requests match these filters"
-          emptyDescription="Try clearing a filter, or request leave."
+          emptyTitle={t('leave.emptyFiltered')}
+          emptyDescription={t('leave.emptyFilteredHint')}
           emptyAction={
             <Link href="/requests/new/LEAVE" className={buttonVariants({ variant: 'primary', size: 'sm' })}>
-              <CalendarDays /> Request leave
+              <CalendarDays /> {t('leave.request')}
             </Link>
           }
         />
       </Card>
 
       <p className="mt-3 text-[11px] text-text-subtle">
-        Working days exclude weekends and the public holidays configured for your office. Last calculated{' '}
-        {formatDate(new Date())}.
+        {t('leave.calcNote', { date: formatDateL(locale, new Date()) })}
       </p>
     </>
   );

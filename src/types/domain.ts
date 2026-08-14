@@ -85,6 +85,9 @@ export type PurchaseCategory = (typeof PURCHASE_CATEGORIES)[number];
 export const CURRENCIES = ['USD', 'KRW', 'VND', 'JPY', 'SGD', 'EUR', 'THB'] as const;
 export type Currency = (typeof CURRENCIES)[number];
 
+export const PAYMENT_METHODS = ['PERSONAL', 'CORPORATE_CARD', 'COMPANY_ACCOUNT'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
 /* ---------------------------------------------------------------- */
 /* Display metadata — status is never communicated by colour alone.  */
 /* Every badge carries icon + label + tooltip.                       */

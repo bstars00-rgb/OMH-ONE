@@ -12,20 +12,21 @@ import { ForbiddenPage } from '@/components/ui/states';
 import { Avatar, Card, CardHeader, CardBody, DetailRow, Progress } from '@/components/ui/primitives';
 import { RequestTable } from '@/components/requests/request-table';
 import { StatTile } from '@/components/stat-tile';
-import { formatDate } from '@/lib/dates';
-import { formatCompact, num } from '@/lib/money';
-import { humanize } from '@/lib/utils';
+import { getI18n, getT } from '@/lib/i18n/server';
+import { formatCompactL, formatDateL } from '@/lib/i18n/format';
+import { num } from '@/lib/money';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const db = await ready();
   const [e] = await db.select({ name: employees.name }).from(employees).where(eq(employees.id, id)).limit(1);
-  return { title: e?.name ?? 'Employee' };
+  return { title: e?.name ?? (await getT())('label.employee') };
 }
 
 export default async function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
+  const { t, locale } = await getI18n();
   const db = await ready();
 
   const [person] = await db
@@ -57,7 +58,7 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
     .limit(1);
 
   if (!person) notFound();
-  if (!canViewEmployee(session, person)) return <ForbiddenPage what="this employee profile" />;
+  if (!canViewEmployee(session, person)) return <ForbiddenPage what={t('people.thisProfile')} />;
 
   const isSelf = person.id === session.employeeId;
   const year = new Date().getUTCFullYear();
@@ -90,43 +91,58 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
   return (
     <>
       <PageHeader
-        breadcrumbs={[{ label: 'Employees', href: '/people' }, { label: person.name }]}
+        breadcrumbs={[{ label: t('people.title'), href: '/people' }, { label: person.name }]}
         title={
           <span className="flex items-center gap-3">
             <Avatar name={person.name} size="lg" />
             {person.name}
           </span>
         }
-        description={`${person.position ?? 'Employee'}${person.departmentName ? ` · ${person.departmentName}` : ''}`}
+        description={`${person.position ?? t('label.employee')}${person.departmentName ? ` · ${person.departmentName}` : ''}`}
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Requests submitted" value={Number(totals?.total ?? 0)} sublabel="All time" icon="FileText" />
-        <StatTile label="Approved" value={Number(totals?.approved ?? 0)} sublabel="All time" icon="CheckCircle2" />
         <StatTile
-          label="In flight"
+          label={t('people.requestsSubmitted')}
+          value={Number(totals?.total ?? 0)}
+          sublabel={t('label.allTime')}
+          icon="FileText"
+        />
+        <StatTile
+          label={t('people.approved')}
+          value={Number(totals?.approved ?? 0)}
+          sublabel={t('label.allTime')}
+          icon="CheckCircle2"
+        />
+        <StatTile
+          label={t('people.inFlight')}
           value={Number(totals?.open ?? 0)}
-          sublabel="Awaiting a decision"
+          sublabel={t('people.inFlightSub')}
           icon="Clock"
           tone={Number(totals?.open ?? 0) > 0 ? 'warning' : 'default'}
         />
-        <StatTile label="Approved value" value={formatCompact(num(totals?.spend))} sublabel="All time" icon="Wallet" />
+        <StatTile
+          label={t('people.approvedValue')}
+          value={formatCompactL(locale, num(totals?.spend))}
+          sublabel={t('label.allTime')}
+          icon="Wallet"
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
         <div className="space-y-4">
           <Card>
-            <CardHeader title="Details" />
+            <CardHeader title={t('people.details')} />
             <CardBody>
               <dl className="divide-y divide-border-subtle">
-                <DetailRow label="Employee code">{person.code}</DetailRow>
-                <DetailRow label="Email">{person.email}</DetailRow>
-                <DetailRow label="Department">{person.departmentName ?? '—'}</DetailRow>
-                <DetailRow label="Team">{person.teamName ?? '—'}</DetailRow>
-                <DetailRow label="Office">
+                <DetailRow label={t('people.employeeCode')}>{person.code}</DetailRow>
+                <DetailRow label={t('label.email')}>{person.email}</DetailRow>
+                <DetailRow label={t('label.department')}>{person.departmentName ?? '—'}</DetailRow>
+                <DetailRow label={t('label.team')}>{person.teamName ?? '—'}</DetailRow>
+                <DetailRow label={t('label.office')}>
                   {person.officeName ? `${person.officeName}, ${person.officeCountry}` : '—'}
                 </DetailRow>
-                <DetailRow label="Reports to">
+                <DetailRow label={t('detail.reportsTo')}>
                   {person.managerName && person.managerId ? (
                     <Link href={`/people/${person.managerId}`} className="text-accent hover:underline">
                       {person.managerName}
@@ -135,9 +151,9 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
                     '—'
                   )}
                 </DetailRow>
-                <DetailRow label="Employment">{humanize(person.employmentType)}</DetailRow>
-                <DetailRow label="Joined">{formatDate(String(person.joinDate))}</DetailRow>
-                <DetailRow label="Status">{humanize(person.status)}</DetailRow>
+                <DetailRow label={t('people.employment')}>{t(`employment.${person.employmentType}`)}</DetailRow>
+                <DetailRow label={t('people.joined')}>{formatDateL(locale, String(person.joinDate))}</DetailRow>
+                <DetailRow label={t('label.status')}>{t(`employeeStatus.${person.status}`)}</DetailRow>
               </dl>
             </CardBody>
           </Card>
@@ -145,10 +161,10 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
           {/* Leave detail is HR data — visible to the person themselves, HR and directors. */}
           {(isSelf || hasRole(session, 'HR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN', 'AUDITOR')) && (
             <Card>
-              <CardHeader title={`Leave balance ${year}`} />
+              <CardHeader title={t('people.leaveBalanceYear', { year })} />
               <CardBody className="space-y-3">
                 {balances.length === 0 ? (
-                  <p className="text-xs text-text-muted">No balance configured for this year.</p>
+                  <p className="text-xs text-text-muted">{t('people.noBalanceYear')}</p>
                 ) : (
                   balances.map((b) => {
                     const total = num(b.allowance) + num(b.carriedOver);
@@ -156,14 +172,18 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
                     return (
                       <div key={b.id}>
                         <div className="mb-1 flex items-baseline justify-between text-xs">
-                          <span className="font-medium text-text">{humanize(b.leaveType)}</span>
+                          <span className="font-medium text-text">{t(`leaveType.${b.leaveType}`)}</span>
                           <span className="text-text-muted tabular">
-                            {total - consumed} of {total} left
+                            {t('people.leftOf', { remaining: total - consumed, total })}
                           </span>
                         </div>
-                        <Progress value={consumed} max={total} label={`${b.leaveType} utilisation`} />
+                        <Progress
+                          value={consumed}
+                          max={total}
+                          label={t('leaveForm.usedAria', { type: t(`leaveType.${b.leaveType}`) })}
+                        />
                         <p className="mt-1 text-[10px] text-text-subtle tabular">
-                          {num(b.used)} used · {num(b.pending)} pending
+                          {t('people.usedPending', { used: num(b.used), pending: num(b.pending) })}
                         </p>
                       </div>
                     );
@@ -171,7 +191,9 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
                 )}
                 {annual && (
                   <p className="border-t border-border-subtle pt-2 text-[11px] text-text-subtle">
-                    Annual utilisation {allowance > 0 ? Math.round(((used + pending) / allowance) * 100) : 0}%.
+                    {t('people.annualUtil', {
+                      pct: allowance > 0 ? Math.round(((used + pending) / allowance) * 100) : 0,
+                    })}
                   </p>
                 )}
               </CardBody>
@@ -181,18 +203,18 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
 
         <Card className="overflow-hidden">
           <CardHeader
-            title="Request history"
-            description="Limited to requests you are permitted to see."
+            title={t('people.history')}
+            description={t('people.historySub')}
           />
           <RequestTable
             rows={list.rows}
             total={list.total}
             page={list.page}
             pageSize={list.pageSize}
-            baseParams={new URLSearchParams()}
+            baseParams=''
             columns={['type', 'number', 'title', 'amount', 'status', 'submitted']}
-            emptyTitle="No requests visible"
-            emptyDescription="Either this person has not submitted anything, or their requests are outside your scope."
+            emptyTitle={t('people.historyEmpty')}
+            emptyDescription={t('people.historyEmptyHint')}
           />
         </Card>
       </div>

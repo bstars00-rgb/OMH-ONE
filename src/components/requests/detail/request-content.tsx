@@ -2,52 +2,73 @@ import * as React from 'react';
 import { FileText, Paperclip, Plane, Receipt, ShoppingCart } from 'lucide-react';
 import { Avatar, Badge, Card, CardHeader, CardBody, DetailRow } from '@/components/ui/primitives';
 import { TableWrap, THead, TH, TBody, TR, TD } from '@/components/ui/table';
-import { formatMoney, num } from '@/lib/money';
-import { formatDate, formatRange } from '@/lib/dates';
+import { num } from '@/lib/money';
+import { getI18n } from '@/lib/i18n/server';
+import { formatMoneyL, formatDateL, formatRangeL } from '@/lib/i18n/format';
+import type { Locale, Translator } from '@/lib/i18n';
 import type { RequestDetail } from '@/server/queries/requests';
 
+/**
+ * Translation handles resolved once by `RequestContent` and threaded down.
+ *
+ * The sub-renderers stay synchronous that way: only the entry point awaits the
+ * locale, so a request body never renders half-translated.
+ */
+interface L {
+  t: Translator;
+  /** Enum values come from the database; unmapped codes fall back to the raw text. */
+  tOr: (key: string, fallback: string, vars?: Record<string, string | number>) => string;
+  locale: Locale;
+}
+
 /** Renders the body of a request according to its type. */
-export function RequestContent({ detail }: { detail: RequestDetail }) {
+export async function RequestContent({ detail }: { detail: RequestDetail }) {
+  const l = await getI18n();
+
   switch (detail.request.requestType) {
     case 'LEAVE':
-      return <LeaveContent detail={detail} />;
+      return <LeaveContent detail={detail} l={l} />;
     case 'BUSINESS_TRIP':
-      return <TripContent detail={detail} />;
+      return <TripContent detail={detail} l={l} />;
     case 'PURCHASE':
-      return <PurchaseContent detail={detail} />;
+      return <PurchaseContent detail={detail} l={l} />;
     case 'EXPENSE':
-      return <ExpenseContent detail={detail} />;
+      return <ExpenseContent detail={detail} l={l} />;
     default:
-      return <GenericContent detail={detail} />;
+      return <GenericContent detail={detail} l={l} />;
   }
 }
 
-function LeaveContent({ detail }: { detail: RequestDetail }) {
-  const l = detail.leave;
-  if (!l) return <MissingDetail />;
+function LeaveContent({ detail, l }: { detail: RequestDetail; l: L }) {
+  const { t, tOr, locale } = l;
+  const leave = detail.leave;
+  if (!leave) return <MissingDetail t={t} />;
+
   return (
     <Card>
-      <CardHeader title="Leave detail" />
+      <CardHeader title={t('content.leaveTitle')} />
       <CardBody className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
         <dl>
-          <DetailRow label="Leave type">{title(l.leaveType)}</DetailRow>
-          <DetailRow label="Period">{formatRange(String(l.startDate), String(l.endDate))}</DetailRow>
-          <DetailRow label="Calendar days">{l.calendarDays}</DetailRow>
-          <DetailRow label="Working days">
-            <span className="text-sm font-semibold">{num(l.workingDays)}</span>
+          <DetailRow label={t('content.leaveType')}>
+            {tOr(`leaveType.${leave.leaveType}`, title(leave.leaveType))}
+          </DetailRow>
+          <DetailRow label={t('label.period')}>
+            {formatRangeL(locale, String(leave.startDate), String(leave.endDate))}
+          </DetailRow>
+          <DetailRow label={t('content.calendarDays')}>{leave.calendarDays}</DetailRow>
+          <DetailRow label={t('content.workingDays')}>
+            <span className="text-sm font-semibold">{num(leave.workingDays)}</span>
           </DetailRow>
         </dl>
         <dl>
-          <DetailRow label="Half day at start">{l.halfDayStart ? 'Yes' : 'No'}</DetailRow>
-          <DetailRow label="Half day at end">{l.halfDayEnd ? 'Yes' : 'No'}</DetailRow>
-          <DetailRow label="Emergency contact">{l.emergencyContact ?? '—'}</DetailRow>
+          <DetailRow label={t('content.halfDayStart')}>{t(leave.halfDayStart ? 'common.yes' : 'common.no')}</DetailRow>
+          <DetailRow label={t('content.halfDayEnd')}>{t(leave.halfDayEnd ? 'common.yes' : 'common.no')}</DetailRow>
+          <DetailRow label={t('content.emergencyContact')}>{leave.emergencyContact ?? '—'}</DetailRow>
         </dl>
-        {l.reason && (
+        {leave.reason && (
           <div className="sm:col-span-2">
-            <p className="mt-3 mb-1 text-xs text-text-muted">Reason</p>
-            <p className="rounded-[var(--radius-control)] border border-border-subtle bg-surface-sunken px-3 py-2 text-xs leading-relaxed text-text">
-              {l.reason}
-            </p>
+            <p className="mt-3 mb-1 text-xs text-text-muted">{t('label.reason')}</p>
+            <Prose>{leave.reason}</Prose>
           </div>
         )}
       </CardBody>
@@ -55,55 +76,61 @@ function LeaveContent({ detail }: { detail: RequestDetail }) {
   );
 }
 
-function TripContent({ detail }: { detail: RequestDetail }) {
-  const t = detail.trip;
-  if (!t) return <MissingDetail />;
-  const total = num(t.totalBase);
-  const perTraveller = t.travelers.length ? total / t.travelers.length : total;
+function TripContent({ detail, l }: { detail: RequestDetail; l: L }) {
+  const { t, tOr, locale } = l;
+  const trip = detail.trip;
+  if (!trip) return <MissingDetail t={t} />;
+
+  const total = num(trip.totalBase);
+  const perTraveller = trip.travelers.length ? total / trip.travelers.length : total;
 
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader title="Trip detail" icon={<Plane className="size-4" />} />
+        <CardHeader title={t('content.tripTitle')} icon={<Plane className="size-4" />} />
         <CardBody className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
           <dl>
-            <DetailRow label="Destination">
-              {t.city}, {t.country}
+            <DetailRow label={t('content.destination')}>
+              {trip.city}, {trip.country}
             </DetailRow>
-            <DetailRow label="Type">{t.isInternational ? 'International' : 'Domestic'}</DetailRow>
-            <DetailRow label="Period">{formatRange(String(t.startDate), String(t.endDate))}</DetailRow>
-            <DetailRow label="Duration">{t.durationDays} days</DetailRow>
-            <DetailRow label="Event">{t.eventName ?? '—'}</DetailRow>
-            <DetailRow label="Partner">{t.partner ?? '—'}</DetailRow>
+            <DetailRow label={t('label.type')}>
+              {t(trip.isInternational ? 'content.international' : 'content.domestic')}
+            </DetailRow>
+            <DetailRow label={t('label.period')}>
+              {formatRangeL(locale, String(trip.startDate), String(trip.endDate))}
+            </DetailRow>
+            <DetailRow label={t('content.duration')}>{t('unit.days', { count: trip.durationDays })}</DetailRow>
+            <DetailRow label={t('content.event')}>{trip.eventName ?? '—'}</DetailRow>
+            <DetailRow label={t('content.partner')}>{trip.partner ?? '—'}</DetailRow>
           </dl>
           <dl>
-            <DetailRow label="Outbound flight">{t.outboundFlight ?? '—'}</DetailRow>
-            <DetailRow label="Return flight">{t.inboundFlight ?? '—'}</DetailRow>
-            <DetailRow label="Hotel">{t.hotelName ?? '—'}</DetailRow>
-            <DetailRow label="Nights">{t.hotelNights}</DetailRow>
-            <DetailRow label="Rate per night">{t.hotelRatePerNight ? formatMoney(t.hotelRatePerNight) : '—'}</DetailRow>
-            <DetailRow label="Transport">{t.transportation ?? '—'}</DetailRow>
+            <DetailRow label={t('content.outbound')}>{trip.outboundFlight ?? '—'}</DetailRow>
+            <DetailRow label={t('content.inbound')}>{trip.inboundFlight ?? '—'}</DetailRow>
+            <DetailRow label={t('content.hotel')}>{trip.hotelName ?? '—'}</DetailRow>
+            <DetailRow label={t('content.nights')}>{trip.hotelNights}</DetailRow>
+            <DetailRow label={t('content.ratePerNight')}>
+              {trip.hotelRatePerNight ? formatMoneyL(locale, trip.hotelRatePerNight) : '—'}
+            </DetailRow>
+            <DetailRow label={t('content.transport')}>{trip.transportation ?? '—'}</DetailRow>
           </dl>
           <div className="sm:col-span-2">
-            <p className="mt-3 mb-1 text-xs text-text-muted">Purpose</p>
-            <p className="rounded-[var(--radius-control)] border border-border-subtle bg-surface-sunken px-3 py-2 text-xs leading-relaxed text-text">
-              {t.purpose}
-            </p>
+            <p className="mt-3 mb-1 text-xs text-text-muted">{t('label.purpose')}</p>
+            <Prose>{trip.purpose}</Prose>
           </div>
         </CardBody>
       </Card>
 
       <Card>
-        <CardHeader title={`Travellers (${t.travelers.length})`} />
+        <CardHeader title={t('content.travellers', { count: trip.travelers.length })} />
         <CardBody className="flex flex-wrap gap-2">
-          {t.travelers.map((tr) => (
+          {trip.travelers.map((tr) => (
             <span
               key={tr.id}
               className="flex items-center gap-2 rounded-full border border-border-subtle bg-surface-sunken py-1 pr-3 pl-1"
             >
               <Avatar name={tr.name} size="xs" />
               <span className="text-xs font-medium text-text">{tr.name}</span>
-              {tr.isLead && <Badge tone="indigo">Lead</Badge>}
+              {tr.isLead && <Badge tone="indigo">{t('content.lead')}</Badge>}
             </span>
           ))}
         </CardBody>
@@ -111,25 +138,25 @@ function TripContent({ detail }: { detail: RequestDetail }) {
 
       <Card>
         <CardHeader
-          title="Cost breakdown"
-          description={`${formatMoney(perTraveller)} per traveller`}
-          actions={<span className="text-sm font-semibold text-text tabular">{formatMoney(total)}</span>}
+          title={t('content.costBreakdown')}
+          description={t('content.perTraveller', { amount: formatMoneyL(locale, perTraveller) })}
+          actions={<span className="text-sm font-semibold text-text tabular">{formatMoneyL(locale, total)}</span>}
         />
         <TableWrap>
           <THead>
             <TR>
-              <TH>Category</TH>
-              <TH>Description</TH>
-              <TH align="right">Amount</TH>
-              <TH align="right">Share</TH>
+              <TH>{t('label.category')}</TH>
+              <TH>{t('label.description')}</TH>
+              <TH align="right">{t('label.amount')}</TH>
+              <TH align="right">{t('content.share')}</TH>
             </TR>
           </THead>
           <TBody>
-            {t.costs.map((c) => (
+            {trip.costs.map((c) => (
               <TR key={c.id}>
-                <TD className="font-medium">{title(c.category)}</TD>
+                <TD className="font-medium">{tOr(`tripCost.${c.category}`, title(c.category))}</TD>
                 <TD className="text-text-muted">{c.description ?? '—'}</TD>
-                <TD numeric>{formatMoney(c.amountBase)}</TD>
+                <TD numeric>{formatMoneyL(locale, c.amountBase)}</TD>
                 <TD numeric className="text-text-muted">
                   {total > 0 ? `${Math.round((num(c.amountBase) / total) * 100)}%` : '—'}
                 </TD>
@@ -142,49 +169,53 @@ function TripContent({ detail }: { detail: RequestDetail }) {
   );
 }
 
-function PurchaseContent({ detail }: { detail: RequestDetail }) {
+function PurchaseContent({ detail, l }: { detail: RequestDetail; l: L }) {
+  const { t, tOr, locale } = l;
   const p = detail.purchase;
-  if (!p) return <MissingDetail />;
+  if (!p) return <MissingDetail t={t} />;
+
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader title="Purchase detail" icon={<ShoppingCart className="size-4" />} />
+        <CardHeader title={t('content.purchaseTitle')} icon={<ShoppingCart className="size-4" />} />
         <CardBody className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
           <dl>
-            <DetailRow label="Category">{title(p.category)}</DetailRow>
-            <DetailRow label="Vendor">{p.vendorName ?? 'Not selected'}</DetailRow>
-            <DetailRow label="Required by">{p.requiredDate ? formatDate(String(p.requiredDate)) : '—'}</DetailRow>
+            <DetailRow label={t('label.category')}>
+              {tOr(`purchaseCategory.${p.category}`, title(p.category))}
+            </DetailRow>
+            <DetailRow label={t('content.vendor')}>{p.vendorName ?? t('content.noVendor')}</DetailRow>
+            <DetailRow label={t('content.requiredBy')}>
+              {p.requiredDate ? formatDateL(locale, String(p.requiredDate)) : '—'}
+            </DetailRow>
           </dl>
           <dl>
-            <DetailRow label="Quotations">
+            <DetailRow label={t('content.quotations')}>
               <span className={p.quotationCount < 2 && num(p.totalBase) > 3000 ? 'text-rose-600 dark:text-rose-400' : ''}>
                 {p.quotationCount}
               </span>
             </DetailRow>
-            <DetailRow label="Currency">{p.currency}</DetailRow>
-            <DetailRow label="Total">
-              <span className="text-sm font-semibold">{formatMoney(p.totalBase)}</span>
+            <DetailRow label={t('label.currency')}>{p.currency}</DetailRow>
+            <DetailRow label={t('label.total')}>
+              <span className="text-sm font-semibold">{formatMoneyL(locale, p.totalBase)}</span>
             </DetailRow>
           </dl>
           <div className="sm:col-span-2">
-            <p className="mt-3 mb-1 text-xs text-text-muted">Purpose</p>
-            <p className="rounded-[var(--radius-control)] border border-border-subtle bg-surface-sunken px-3 py-2 text-xs leading-relaxed text-text">
-              {p.purpose}
-            </p>
+            <p className="mt-3 mb-1 text-xs text-text-muted">{t('label.purpose')}</p>
+            <Prose>{p.purpose}</Prose>
           </div>
         </CardBody>
       </Card>
 
       <Card>
-        <CardHeader title={`Line items (${p.items.length})`} />
+        <CardHeader title={t('content.lineItems', { count: p.items.length })} />
         <TableWrap>
           <THead>
             <TR>
-              <TH>Item</TH>
-              <TH>Description</TH>
-              <TH align="right">Qty</TH>
-              <TH align="right">Unit price</TH>
-              <TH align="right">Line total</TH>
+              <TH>{t('content.item')}</TH>
+              <TH>{t('label.description')}</TH>
+              <TH align="right">{t('content.qty')}</TH>
+              <TH align="right">{t('content.unitPrice')}</TH>
+              <TH align="right">{t('content.lineTotal')}</TH>
             </TR>
           </THead>
           <TBody>
@@ -193,9 +224,9 @@ function PurchaseContent({ detail }: { detail: RequestDetail }) {
                 <TD className="font-medium">{i.itemName}</TD>
                 <TD className="text-text-muted">{i.description ?? '—'}</TD>
                 <TD numeric>{num(i.quantity)}</TD>
-                <TD numeric>{formatMoney(i.unitPrice)}</TD>
+                <TD numeric>{formatMoneyL(locale, i.unitPrice)}</TD>
                 <TD numeric className="font-medium">
-                  {formatMoney(i.lineTotal)}
+                  {formatMoneyL(locale, i.lineTotal)}
                 </TD>
               </TR>
             ))}
@@ -206,64 +237,70 @@ function PurchaseContent({ detail }: { detail: RequestDetail }) {
   );
 }
 
-function ExpenseContent({ detail }: { detail: RequestDetail }) {
+function ExpenseContent({ detail, l }: { detail: RequestDetail; l: L }) {
+  const { t, tOr, locale } = l;
   const e = detail.expense;
-  if (!e) return <MissingDetail />;
+  if (!e) return <MissingDetail t={t} />;
+
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader title="Claim detail" icon={<Receipt className="size-4" />} />
+        <CardHeader title={t('content.claimTitle')} icon={<Receipt className="size-4" />} />
         <CardBody className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
           <dl>
-            <DetailRow label="Payment method">{title(e.paymentMethod)}</DetailRow>
-            <DetailRow label="Currency">{e.currency}</DetailRow>
-            <DetailRow label="Linked trip">
+            <DetailRow label={t('content.paymentMethod')}>
+              {tOr(`payment.${e.paymentMethod}.short`, title(e.paymentMethod))}
+            </DetailRow>
+            <DetailRow label={t('label.currency')}>{e.currency}</DetailRow>
+            <DetailRow label={t('content.linkedTrip')}>
               {e.linkedTripNumber ? (
                 <span className="font-mono text-[11px]">{e.linkedTripNumber}</span>
               ) : (
-                'Not linked'
+                t('content.notLinked')
               )}
             </DetailRow>
           </dl>
           <dl>
-            <DetailRow label="Lines">{e.items.length}</DetailRow>
-            <DetailRow label="Total">
-              <span className="text-sm font-semibold">{formatMoney(e.totalBase)}</span>
+            <DetailRow label={t('content.lines')}>{e.items.length}</DetailRow>
+            <DetailRow label={t('label.total')}>
+              <span className="text-sm font-semibold">{formatMoneyL(locale, e.totalBase)}</span>
             </DetailRow>
-            <DetailRow label="Reimbursed">{e.reimbursedAt ? formatDate(e.reimbursedAt) : 'Not yet'}</DetailRow>
+            <DetailRow label={t('content.reimbursed')}>
+              {e.reimbursedAt ? formatDateL(locale, e.reimbursedAt) : t('content.notYet')}
+            </DetailRow>
           </dl>
         </CardBody>
       </Card>
 
       <Card>
-        <CardHeader title={`Expense lines (${e.items.length})`} />
+        <CardHeader title={t('content.expenseLines', { count: e.items.length })} />
         <TableWrap>
           <THead>
             <TR>
-              <TH>Date</TH>
-              <TH>Category</TH>
-              <TH>Merchant</TH>
-              <TH align="right">Amount</TH>
-              <TH align="right">Tax</TH>
-              <TH>Source</TH>
+              <TH>{t('label.date')}</TH>
+              <TH>{t('label.category')}</TH>
+              <TH>{t('content.merchant')}</TH>
+              <TH align="right">{t('label.amount')}</TH>
+              <TH align="right">{t('content.tax')}</TH>
+              <TH>{t('content.source')}</TH>
             </TR>
           </THead>
           <TBody>
             {e.items.map((i) => (
               <TR key={i.id}>
-                <TD className="whitespace-nowrap tabular">{formatDate(String(i.expenseDate))}</TD>
+                <TD className="whitespace-nowrap tabular">{formatDateL(locale, String(i.expenseDate))}</TD>
                 <TD>
-                  <Badge tone="slate">{title(i.category)}</Badge>
+                  <Badge tone="slate">{tOr(`expenseCategory.${i.category}`, title(i.category))}</Badge>
                 </TD>
                 <TD className="font-medium">{i.merchant ?? '—'}</TD>
                 <TD numeric className="font-medium">
-                  {formatMoney(i.amountBase)}
+                  {formatMoneyL(locale, i.amountBase)}
                 </TD>
                 <TD numeric className="text-text-muted">
-                  {formatMoney(i.taxAmount)}
+                  {formatMoneyL(locale, i.taxAmount)}
                 </TD>
                 <TD className="text-text-muted">
-                  {i.extractedByAi ? <Badge tone="indigo">AI extracted</Badge> : 'Manual'}
+                  {i.extractedByAi ? <Badge tone="indigo">{t('content.aiExtracted')}</Badge> : t('content.manual')}
                 </TD>
               </TR>
             ))}
@@ -274,32 +311,36 @@ function ExpenseContent({ detail }: { detail: RequestDetail }) {
   );
 }
 
-function GenericContent({ detail }: { detail: RequestDetail }) {
+function GenericContent({ detail, l }: { detail: RequestDetail; l: L }) {
+  const { t, tOr, locale } = l;
   const g = detail.generic;
+
   return (
     <Card>
-      <CardHeader title="Request detail" icon={<FileText className="size-4" />} />
+      <CardHeader title={t('content.genericTitle')} icon={<FileText className="size-4" />} />
       <CardBody className="space-y-3">
         {g?.category && (
           <dl>
-            <DetailRow label="Category">{g.category}</DetailRow>
-            {g.requestedDate && <DetailRow label="Requested date">{formatDate(String(g.requestedDate))}</DetailRow>}
+            <DetailRow label={t('label.category')}>{tOr(`genericCategory.${g.category}`, g.category)}</DetailRow>
+            {g.requestedDate && (
+              <DetailRow label={t('content.requestedDate')}>{formatDateL(locale, String(g.requestedDate))}</DetailRow>
+            )}
           </dl>
         )}
         <div>
-          <p className="mb-1 text-xs text-text-muted">Details</p>
-          <p className="rounded-[var(--radius-control)] border border-border-subtle bg-surface-sunken px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap text-text">
-            {g?.details ?? detail.request.description ?? 'No further detail provided.'}
-          </p>
+          <p className="mb-1 text-xs text-text-muted">{t('content.details')}</p>
+          <Prose preserveBreaks>{g?.details ?? detail.request.description ?? t('content.noDetail')}</Prose>
         </div>
       </CardBody>
     </Card>
   );
 }
 
-export function AttachmentList({ items }: { items: RequestDetail['attachments'] }) {
+export async function AttachmentList({ items }: { items: RequestDetail['attachments'] }) {
+  const { t } = await getI18n();
+
   if (items.length === 0) {
-    return <p className="text-xs text-text-subtle">No files attached.</p>;
+    return <p className="text-xs text-text-subtle">{t('detail.noFiles')}</p>;
   }
   return (
     <ul className="space-y-1.5">
@@ -316,19 +357,30 @@ export function AttachmentList({ items }: { items: RequestDetail['attachments'] 
   );
 }
 
-function MissingDetail() {
+function MissingDetail({ t }: { t: Translator }) {
   return (
     <Card>
       <CardBody>
-        <p className="text-xs text-text-muted">
-          The type-specific detail for this request could not be loaded. The approval record itself is intact — see the
-          timeline below.
-        </p>
+        <p className="text-xs text-text-muted">{t('detail.missingDetail')}</p>
       </CardBody>
     </Card>
   );
 }
 
+function Prose({ children, preserveBreaks }: { children: React.ReactNode; preserveBreaks?: boolean }) {
+  return (
+    <p
+      className={
+        'rounded-[var(--radius-control)] border border-border-subtle bg-surface-sunken px-3 py-2 text-xs leading-relaxed text-text' +
+        (preserveBreaks ? ' whitespace-pre-wrap' : '')
+      }
+    >
+      {children}
+    </p>
+  );
+}
+
+/** Fallback display for an enum value the dictionary does not cover. */
 function title(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, ' ');
 }

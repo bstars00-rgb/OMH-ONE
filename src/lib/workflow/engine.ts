@@ -155,11 +155,17 @@ export function canTransition(action: ApprovalAction, from: RequestStatus): bool
   return ALLOWED[action].includes(from);
 }
 
+/**
+ * Carries an i18n key rather than prose, so the same failure reads correctly in
+ * whichever language the user is working in. `message` keeps the key for logs.
+ */
 export class WorkflowError extends Error {
   readonly code = 'WORKFLOW_INVALID';
-  constructor(message: string) {
-    super(message);
+  readonly vars?: Record<string, string | number>;
+  constructor(messageKey: string, vars?: Record<string, string | number>) {
+    super(messageKey);
     this.name = 'WorkflowError';
+    this.vars = vars;
   }
 }
 

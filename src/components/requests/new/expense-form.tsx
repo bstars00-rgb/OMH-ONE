@@ -6,9 +6,10 @@ import { Button, Card, CardBody, CardHeader, Field, Input, Select, Textarea } fr
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
 import { createExpenseAction, extractReceiptAction } from '@/server/actions/create';
 import { toISODate } from '@/lib/dates';
-import { formatMoney, round2 } from '@/lib/money';
-import { CURRENCIES, EXPENSE_CATEGORIES } from '@/types/domain';
-import { humanize } from '@/lib/utils';
+import { round2 } from '@/lib/money';
+import { useI18n } from '@/lib/i18n/client';
+import { formatMoneyL, formatDateL } from '@/lib/i18n/format';
+import { CURRENCIES, EXPENSE_CATEGORIES, PAYMENT_METHODS } from '@/types/domain';
 
 interface ExpenseLine {
   key: string;
@@ -37,6 +38,7 @@ export function ExpenseForm({
 }: {
   trips: { id: string; requestNumber: string; city: string; country: string; startDate: string }[];
 }) {
+  const { t, locale } = useI18n();
   const [paymentMethod, setPaymentMethod] = React.useState('PERSONAL');
   const [currency, setCurrency] = React.useState('USD');
   const [tripRequestId, setTripRequestId] = React.useState('');
@@ -45,6 +47,7 @@ export function ExpenseForm({
   const [scanning, setScanning] = React.useState(false);
 
   const { pending, result, errors, run } = useCreateForm();
+  const money = (v: number) => formatMoneyL(locale, v, currency);
   const total = round2(items.reduce((s, i) => s + (Number(i.amount) || 0), 0));
 
   const mealsByDay = new Map<string, number>();
@@ -91,7 +94,7 @@ export function ExpenseForm({
             expenseDate: res.line.expenseDate,
             category: res.line.category,
             merchant: res.line.merchant,
-            description: `From ${file.name}`,
+            description: t('expForm.fromFile', { file: file.name }),
             amount: res.line.amount ? String(res.line.amount) : '',
             taxAmount: res.line.taxAmount ? String(res.line.taxAmount) : '',
             extracted: true,
@@ -119,33 +122,35 @@ export function ExpenseForm({
         <AiDraftBox type="EXPENSE" onDraft={applyDraft} />
 
         <Card>
-          <CardHeader title="Claim detail" icon={<Receipt className="size-4" />} />
+          <CardHeader title={t('expForm.claimDetail')} icon={<Receipt className="size-4" />} />
           <CardBody className="grid gap-4 sm:grid-cols-2">
-            <Field label="Paid by" htmlFor="paymentMethod" required error={errors.paymentMethod}>
+            <Field label={t('expForm.paidBy')} htmlFor="paymentMethod" required error={errors.paymentMethod}>
               <Select id="paymentMethod" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-                <option value="PERSONAL">Personal money (reimburse me)</option>
-                <option value="CORPORATE_CARD">Corporate card</option>
-                <option value="COMPANY_ACCOUNT">Company account</option>
-              </Select>
-            </Field>
-
-            <Field
-              label="Link to a business trip"
-              htmlFor="tripRequestId"
-              hint="Links the claim to an approved trip so travel cost reporting stays complete."
-              error={errors.tripRequestId}
-            >
-              <Select id="tripRequestId" value={tripRequestId} onChange={(e) => setTripRequestId(e.target.value)}>
-                <option value="">Not related to a trip</option>
-                {trips.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.requestNumber} — {t.city}, {t.country} ({t.startDate})
+                {PAYMENT_METHODS.map((m) => (
+                  <option key={m} value={m}>
+                    {t(`payment.${m}`)}
                   </option>
                 ))}
               </Select>
             </Field>
 
-            <Field label="Note for the approver" htmlFor="description" className="sm:col-span-2" error={errors.description}>
+            <Field
+              label={t('expForm.linkTrip')}
+              htmlFor="tripRequestId"
+              hint={t('expForm.linkTripHint')}
+              error={errors.tripRequestId}
+            >
+              <Select id="tripRequestId" value={tripRequestId} onChange={(e) => setTripRequestId(e.target.value)}>
+                <option value="">{t('expForm.notTripRelated')}</option>
+                {trips.map((trip) => (
+                  <option key={trip.id} value={trip.id}>
+                    {trip.requestNumber} — {trip.city}, {trip.country} ({formatDateL(locale, trip.startDate)})
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field label={t('expForm.approverNote')} htmlFor="description" className="sm:col-span-2" error={errors.description}>
               <Textarea id="description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
             </Field>
           </CardBody>
@@ -153,8 +158,8 @@ export function ExpenseForm({
 
         <Card>
           <CardHeader
-            title="Receipts"
-            description="Attach receipts and the details are read into the lines below for you to check."
+            title={t('expForm.receipts')}
+            description={t('expForm.receiptsSub')}
             icon={<ScanLine className="size-4" />}
           />
           <CardBody>
@@ -173,25 +178,20 @@ export function ExpenseForm({
                 <ScanLine className="size-5 text-text-subtle" />
               )}
               <span className="text-xs font-medium text-text">
-                {scanning ? 'Reading receipts…' : 'Choose receipt files'}
+                {scanning ? t('expForm.readingReceipts') : t('expForm.chooseFiles')}
               </span>
-              <span className="text-[11px] text-text-subtle">
-                Images or PDF. Each receipt becomes an expense line you can edit.
-              </span>
+              <span className="text-[11px] text-text-subtle">{t('expForm.fileHint')}</span>
             </label>
-            <p className="mt-2 text-[10px] leading-relaxed text-text-subtle">
-              Prototype note: files are not uploaded to storage. Merchant, date, amount and category are inferred and
-              flagged as AI-filled — always check them against the paper receipt.
-            </p>
+            <p className="mt-2 text-[10px] leading-relaxed text-text-subtle">{t('expForm.prototypeNote')}</p>
           </CardBody>
         </Card>
 
         <Card>
           <CardHeader
-            title="Expense lines"
+            title={t('expForm.expenseLines')}
             actions={
               <Button size="sm" variant="secondary" onClick={() => setItems((p) => [...p, newLine()])}>
-                <Plus /> Add line
+                <Plus /> {t('expForm.addLine')}
               </Button>
             }
           />
@@ -200,30 +200,30 @@ export function ExpenseForm({
               <div key={line.key} className="space-y-1">
                 <div className="grid gap-2 sm:grid-cols-[9rem_8rem_minmax(0,1fr)_7rem_auto]">
                   <Input
-                    aria-label={`Date ${i + 1}`}
+                    aria-label={t('expForm.dateAria', { n: i + 1 })}
                     type="date"
                     value={line.expenseDate}
                     onChange={(e) => setItems((p) => p.map((x) => (x.key === line.key ? { ...x, expenseDate: e.target.value } : x)))}
                   />
                   <Select
-                    aria-label={`Category ${i + 1}`}
+                    aria-label={t('expForm.categoryAria', { n: i + 1 })}
                     value={line.category}
                     onChange={(e) => setItems((p) => p.map((x) => (x.key === line.key ? { ...x, category: e.target.value } : x)))}
                   >
                     {EXPENSE_CATEGORIES.map((c) => (
                       <option key={c} value={c}>
-                        {humanize(c)}
+                        {t(`expenseCategory.${c}`)}
                       </option>
                     ))}
                   </Select>
                   <Input
-                    aria-label={`Merchant ${i + 1}`}
-                    placeholder="Merchant"
+                    aria-label={t('expForm.merchantAria', { n: i + 1 })}
+                    placeholder={t('content.merchant')}
                     value={line.merchant}
                     onChange={(e) => setItems((p) => p.map((x) => (x.key === line.key ? { ...x, merchant: e.target.value } : x)))}
                   />
                   <Input
-                    aria-label={`Amount ${i + 1}`}
+                    aria-label={t('expForm.amountAria', { n: i + 1 })}
                     type="number"
                     min={0}
                     step="0.01"
@@ -234,7 +234,7 @@ export function ExpenseForm({
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={`Remove line ${i + 1}`}
+                    aria-label={t('expForm.removeLine', { n: i + 1 })}
                     disabled={items.length === 1}
                     onClick={() => setItems((p) => p.filter((x) => x.key !== line.key))}
                   >
@@ -243,7 +243,7 @@ export function ExpenseForm({
                 </div>
                 {line.extracted && (
                   <p className="pl-1 text-[10px] text-accent">
-                    AI-filled from a receipt · {line.confidence}% confidence — check the merchant, date and amount.
+                    {t('expForm.aiFilled', { pct: line.confidence ?? 0 })}
                   </p>
                 )}
               </div>
@@ -251,14 +251,14 @@ export function ExpenseForm({
             <FieldError id="items-error" message={errors.items} />
 
             <div className="flex items-center justify-between border-t border-border-subtle pt-2.5">
-              <Select aria-label="Currency" value={currency} onChange={(e) => setCurrency(e.target.value)} className="h-8 w-24">
+              <Select aria-label={t('label.currency')} value={currency} onChange={(e) => setCurrency(e.target.value)} className="h-8 w-24">
                 {CURRENCIES.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
               </Select>
-              <p className="text-sm font-semibold text-text tabular">Total {formatMoney(total, currency)}</p>
+              <p className="text-sm font-semibold text-text tabular">{t('tripForm.totalLine', { amount: money(total) })}</p>
             </div>
           </CardBody>
         </Card>
@@ -276,22 +276,21 @@ export function ExpenseForm({
 
       <aside>
         <Card className="sticky top-20">
-          <CardHeader title="Before you submit" />
+          <CardHeader title={t('prForm.beforeSubmit')} />
           <CardBody className="space-y-2 text-xs">
             <p className="text-text-muted">
-              Total <span className="font-semibold text-text tabular">{formatMoney(total, currency)}</span> across{' '}
-              {items.filter((i) => Number(i.amount) > 0).length} line(s)
+              {t('expForm.totalLines', {
+                amount: money(total),
+                count: items.filter((i) => Number(i.amount) > 0).length,
+              })}
             </p>
             {mealBreach && (
               <p className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
-                Meals on {mealBreach[0]} total {formatMoney(mealBreach[1], currency)} — above the $50 daily allowance.
+                {t('expForm.mealBreach', { date: formatDateL(locale, mealBreach[0]), amount: money(mealBreach[1]) })}
               </p>
             )}
-            {total > 50 && <p className="text-[11px] text-text-subtle">Above $50 — Finance reviews after your manager.</p>}
-            <p className="text-[11px] text-text-subtle">
-              Each line is checked against every other claim in the company for a matching receipt before it reaches an
-              approver.
-            </p>
+            {total > 50 && <p className="text-[11px] text-text-subtle">{t('expForm.financeNote')}</p>}
+            <p className="text-[11px] text-text-subtle">{t('expForm.duplicateNote')}</p>
           </CardBody>
         </Card>
       </aside>

@@ -26,6 +26,7 @@ import { submitRequest } from '@/server/services/approval';
 import { getOrCreateReview } from '@/lib/ai/review';
 import { getAIProvider } from '@/lib/ai';
 import { buildFormContext } from '@/server/queries/form-context';
+import { getI18n } from '@/lib/i18n/server';
 import type { RequestType } from '@/types/domain';
 
 export interface CreateResult {
@@ -50,16 +51,22 @@ async function run<T>(
     const session = await requireSession();
     assertCan(session, 'request.create');
 
+    const { t, locale } = await getI18n();
+
     const parsed = schema.safeParse(raw);
     if (!parsed.success) {
-      return { ok: false, message: 'Please correct the highlighted fields.', errors: fieldErrors(parsed.error) };
+      // Both the banner and each field message are resolved here — the schemas
+      // only ever carry keys.
+      const keyed = fieldErrors(parsed.error);
+      const errors = Object.fromEntries(Object.entries(keyed).map(([field, key]) => [field, t(key)]));
+      return { ok: false, message: t('form.fixHighlighted'), errors };
     }
 
     const created = await create(parsed.data);
 
     if (submitNow) {
       await submitRequest(session, created.id);
-      await getOrCreateReview(created.id);
+      await getOrCreateReview(created.id, { locale });
     }
 
     revalidatePath('/requests');
@@ -69,18 +76,18 @@ async function run<T>(
     return {
       ok: true,
       requestId: created.id,
-      message: submitNow
-        ? `${created.requestNumber} submitted for approval.`
-        : `${created.requestNumber} saved as a draft.`,
+      message: t(submitNow ? 'form.submitted' : 'form.savedDraft', { number: created.requestNumber }),
     };
   } catch (err) {
-    if (err instanceof PermissionError || err instanceof WorkflowError || err instanceof ValidationError) {
-      return { ok: false, message: err.message };
-    }
     // `redirect()` throws a control-flow signal — never swallow it.
     if (err && typeof err === 'object' && 'digest' in err && String(err.digest).startsWith('NEXT_REDIRECT')) throw err;
+
+    const { t } = await getI18n();
+    if (err instanceof PermissionError || err instanceof WorkflowError || err instanceof ValidationError) {
+      return { ok: false, message: t(err.message, err.vars) };
+    }
     console.error('[create] failed', err);
-    return { ok: false, message: 'The request could not be created. Please try again.' };
+    return { ok: false, message: t('form.createFailed') };
   }
 }
 
@@ -142,24 +149,30 @@ export async function draftFromTextAction(type: RequestType, prompt: string): Pr
     const session = await requireSession();
     assertCan(session, 'request.create');
 
+    const { t } = await getI18n();
+
     const text = prompt.trim();
-    if (text.length < 10) return { ok: false, message: 'Describe the request in a sentence or two.' };
-    if (text.length > 1500) return { ok: false, message: 'That is too long — summarize it in a couple of sentences.' };
+    if (text.length < 10) return { ok: false, message: t('draft.tooShort') };
+    if (text.length > 1500) return { ok: false, message: t('draft.tooLong') };
 
     const ctx = await buildFormContext(session);
     const draft = await getAIProvider().generateForm(text, type, ctx);
 
     return {
       ok: true,
-      message: 'Draft ready — check every field before submitting.',
+      message: t('draft.ready'),
       fields: draft.fields,
-      missing: draft.missing,
-      notes: draft.notes,
+      // Keys, resolved here. A note may carry one argument after a pipe.
+      missing: draft.missing?.map((key) => t(key)),
+      notes: draft.notes?.map((note) => {
+        const [key, arg] = note.split('|');
+        return arg ? t(key, { names: arg }) : t(key);
+      }),
       confidence: draft.confidence,
     };
   } catch (err) {
     console.error('[ai] draft failed', err);
-    return { ok: false, message: 'Could not generate a draft. Fill the form manually — nothing else is affected.' };
+    return { ok: false, message: (await getI18n()).t('draft.failed') };
   }
 }
 
@@ -171,6 +184,6 @@ export async function extractReceiptAction(fileName: string, hintText?: string) 
     return { ok: true as const, line };
   } catch (err) {
     console.error('[ai] receipt extraction failed', err);
-    return { ok: false as const, message: 'Could not read that receipt. Enter the details manually.' };
+    return { ok: false as const, message: (await getI18n()).t('expForm.receiptFailed') };
   }
 }

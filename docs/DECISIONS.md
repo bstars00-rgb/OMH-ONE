@@ -116,13 +116,55 @@ Each entry states the decision, the reason, what it costs, and what was rejected
 
 **Decision.** `/api/test-login` issues a session for a seeded account without a password, and returns 404 unless `NODE_ENV !== 'production'` **and** `ENABLE_TEST_LOGIN=1`.
 
-**Why.** Driving Next.js Server Actions from a test script is brittle — it depends on an internal action-id protocol that changes between versions. Without a stable way to sign in, the 259-check route sweep and the 12 security assertions could not exist, and the RBAC bug in §3 would have shipped.
+**Why.** Driving Next.js Server Actions from a test script is brittle — it depends on an internal action-id protocol that changes between versions. Without a stable way to sign in, the 448-check route sweep and the 15 security assertions could not exist, and the RBAC bug in §3 would have shipped.
 
 **Cost.** An authentication bypass exists in the codebase. Mitigated by two independent gates, a 404 that never touches the database, and an explicit note in `.env.example` and the README. The alternative — no automated proof that permissions work — was worse.
 
 ---
 
-## 12. Deliberate omissions
+## 12. Locale in a cookie, not a URL prefix
+
+**Decision.** The active language lives in an `ohmy_locale` cookie, read once per request by `getLocale()`. There is no `/ko/…` route prefix.
+
+**Why.** A prefix scheme means moving all 26 routes under `[locale]/` and rewriting every internal link, `redirect()` and `revalidatePath()` call. The benefits it buys — per-language URLs and SEO — do not apply to an internal tool behind a login.
+
+**Cost.** A Korean page cannot be linked as a Korean page: a shared URL opens in the recipient's own language. For an internal tool that is arguably correct. If the app ever becomes public-facing, the `[locale]/` move is mechanical because every string already resolves through `t()`.
+
+---
+
+## 13. Messages are en/ko pairs, enforced by the type system
+
+**Decision.** Every message is a `MessageEntry { en: string; ko: string }`. There is no per-language file.
+
+**Why.** Split files make a missing translation a runtime fallback — the app quietly shows English inside a Korean screen, and nobody notices until a user does. As a pair, a missing Korean string is a TypeScript error before the code runs. Completeness stops depending on discipline.
+
+**Cost.** Diffs are noisier (both languages move together), and a third language means touching every entry rather than adding a file. With two languages and 1,521 entries the trade is clearly worth it; at five languages it would not be.
+
+---
+
+## 14. Server actions translate; domain errors carry keys
+
+**Decision.** `WorkflowError`, `PermissionError` and `ValidationError` carry a message **key** plus interpolation vars, never prose. Zod schemas do the same. The server action resolves the key and returns finished text.
+
+**Why.** Only the server can read the locale cookie, and these values are produced far from any React tree — schemas in particular are module-level constants evaluated at import, long before a request exists. Returning a key to the client and translating there was the first attempt; it fails because the client would also have to resolve keys nested inside vars (`{status}`, `{action}`), and every consumer would have to remember to do it.
+
+Resolving in the action puts the translation at the single point that has both the locale and the values. Var values that are themselves keys are resolved too, which is how `wfError.badStatus` renders "임시저장 상태에서는 상신할 수 없습니다" rather than "DRAFT 상태에서는 submitted할 수 없습니다".
+
+**Cost.** `ActionResult.message` is now locale-bound, so it must not be cached across users. It never is — action results are per-invocation.
+
+---
+
+## 15. Enum-derived key families are audited against the enum
+
+**Decision.** `scripts/i18n-audit.ts` expands each enum (`REQUEST_TYPES`, `APPROVER_ROLES`, `LEAVE_TYPES`, …) against its key prefix and fails on any gap.
+
+**Why.** Most domain labels are looked up dynamically — `t(\`approverRole.${role}\`)` — which the static reference check cannot see. Adding `CTO` and `CEO` to `APPROVER_ROLES` without adding their messages passed typecheck, passed lint, passed the audit, and rendered the literal string "approverRole.CTO" in the workflow builder. It was found by looking at the screen, which does not scale.
+
+**Cost.** The family list is maintained by hand, so a new enum needs a line in the audit. That line is the cheapest possible reminder, and its absence is what the check exists to prevent.
+
+---
+
+## 16. Deliberate omissions
 
 | Not built | Reason | Seam |
 |---|---|---|

@@ -6,9 +6,17 @@ import { Card, CardBody, CardHeader, Field, Input, Select, Textarea } from '@/co
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
 import { createGenericAction } from '@/server/actions/create';
 import { toISODate } from '@/lib/dates';
-import { formatMoney } from '@/lib/money';
+import { useI18n } from '@/lib/i18n/client';
+import { formatMoneyL } from '@/lib/i18n/format';
 import { CURRENCIES } from '@/types/domain';
 
+/**
+ * Stored values, deliberately English.
+ *
+ * The chosen string is what lands in the database, so translating it would make
+ * a Korean-entered request unsearchable next to an English-entered one. The
+ * dictionary maps each value to a display label instead.
+ */
 const HR_CATEGORIES = [
   'Employment certificate',
   'Contract amendment',
@@ -31,6 +39,7 @@ const GENERAL_CATEGORIES = [
 ];
 
 export function GenericForm({ type }: { type: 'HR' | 'GENERAL' }) {
+  const { t, tOr, locale } = useI18n();
   const today = toISODate(new Date());
   const categories = type === 'HR' ? HR_CATEGORIES : GENERAL_CATEGORIES;
 
@@ -63,30 +72,30 @@ export function GenericForm({ type }: { type: 'HR' | 'GENERAL' }) {
 
         <Card>
           <CardHeader
-            title={type === 'HR' ? 'HR request' : 'General approval'}
+            title={t(type === 'HR' ? 'genForm.hrTitle' : 'genForm.generalTitle')}
             icon={type === 'HR' ? <UserCog className="size-4" /> : <FileText className="size-4" />}
           />
           <CardBody className="grid gap-4 sm:grid-cols-2">
-            <Field label="Title" htmlFor="title" required className="sm:col-span-2" error={errors.title}>
+            <Field label={t('label.title')} htmlFor="title" required className="sm:col-span-2" error={errors.title}>
               <Input
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder={type === 'HR' ? 'Employment certificate for visa application' : 'Annual insurance renewal'}
+                placeholder={t(type === 'HR' ? 'genForm.titlePlaceholderHr' : 'genForm.titlePlaceholderGeneral')}
               />
             </Field>
 
-            <Field label="Category" htmlFor="category" required error={errors.category}>
+            <Field label={t('label.category')} htmlFor="category" required error={errors.category}>
               <Select id="category" value={category} onChange={(e) => setCategory(e.target.value)}>
                 {categories.map((c) => (
                   <option key={c} value={c}>
-                    {c}
+                    {tOr(`genericCategory.${c}`, c)}
                   </option>
                 ))}
               </Select>
             </Field>
 
-            <Field label="Needed by" htmlFor="requestedDate" error={errors.requestedDate}>
+            <Field label={t('prForm.neededBy')} htmlFor="requestedDate" error={errors.requestedDate}>
               <Input
                 id="requestedDate"
                 type="date"
@@ -96,20 +105,20 @@ export function GenericForm({ type }: { type: 'HR' | 'GENERAL' }) {
               />
             </Field>
 
-            <Field label="Details" htmlFor="details" required className="sm:col-span-2" error={errors.details}>
+            <Field label={t('content.details')} htmlFor="details" required className="sm:col-span-2" error={errors.details}>
               <Textarea
                 id="details"
                 rows={5}
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
-                placeholder="Explain what you need and why. The approver sees an AI summary of this alongside the full text."
+                placeholder={t('genForm.detailsPlaceholder')}
               />
             </Field>
 
             <Field
-              label="Amount"
+              label={t('label.amount')}
               htmlFor="amount"
-              hint="Leave at zero if there is no cost. Above $1,000 also needs Director approval."
+              hint={t('genForm.amountHint')}
               error={errors.amount}
             >
               <Input
@@ -122,7 +131,7 @@ export function GenericForm({ type }: { type: 'HR' | 'GENERAL' }) {
               />
             </Field>
 
-            <Field label="Currency" htmlFor="currency" error={errors.currency}>
+            <Field label={t('label.currency')} htmlFor="currency" error={errors.currency}>
               <Select id="currency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
                 {CURRENCIES.map((c) => (
                   <option key={c} value={c}>
@@ -147,19 +156,21 @@ export function GenericForm({ type }: { type: 'HR' | 'GENERAL' }) {
 
       <aside>
         <Card className="sticky top-20">
-          <CardHeader title="Routing" />
+          <CardHeader title={t('genForm.routing')} />
           <CardBody className="space-y-2 text-xs text-text-muted">
-            {type === 'HR' ? (
-              <p>Goes to your line manager, then HR.</p>
-            ) : (
-              <p>
-                Goes to your line manager
-                {numericAmount > 1000 ? ', then the Director because the amount is above $1,000' : ''}.
-              </p>
-            )}
+            <p>
+              {t(
+                type === 'HR'
+                  ? 'genForm.routingHr'
+                  : numericAmount > 1000
+                    ? 'genForm.routingGeneralDirector'
+                    : 'genForm.routingGeneral',
+              )}
+            </p>
             {numericAmount > 0 && (
               <p className="text-text">
-                Amount <span className="font-semibold tabular">{formatMoney(numericAmount, currency)}</span>
+                {t('label.amount')}{' '}
+                <span className="font-semibold tabular">{formatMoneyL(locale, numericAmount, currency)}</span>
               </p>
             )}
           </CardBody>

@@ -93,6 +93,8 @@ export const domain: MessageTable = {
   'approverRole.HR': { en: 'HR', ko: '인사팀' },
   'approverRole.FINANCE': { en: 'Finance', ko: '재무팀' },
   'approverRole.DIRECTOR': { en: 'Director', ko: '임원' },
+  'approverRole.CTO': { en: 'CTO', ko: 'CTO' },
+  'approverRole.CEO': { en: 'CEO', ko: 'CEO' },
 
   /* --- workflow step names as seeded --- */
   'step.Line Manager': { en: 'Line Manager', ko: '팀장 결재' },
@@ -141,6 +143,24 @@ export const domain: MessageTable = {
   'budgetCategory.PROCUREMENT': { en: 'Procurement', ko: '구매' },
   'budgetCategory.OPERATING': { en: 'Operating', ko: '운영' },
   'budgetCategory.MARKETING': { en: 'Marketing', ko: '마케팅' },
+
+  /* --- HR and general request categories (values are stored in English) --- */
+  'genericCategory.Employment certificate': { en: 'Employment certificate', ko: '재직증명서' },
+  'genericCategory.Contract amendment': { en: 'Contract amendment', ko: '계약 변경' },
+  'genericCategory.Work-from-home arrangement': { en: 'Work-from-home arrangement', ko: '재택근무 신청' },
+  'genericCategory.Training sponsorship': { en: 'Training sponsorship', ko: '교육비 지원' },
+  'genericCategory.Equipment request': { en: 'Equipment request', ko: '장비 요청' },
+  'genericCategory.Parental leave planning': { en: 'Parental leave planning', ko: '육아휴직 협의' },
+  'genericCategory.Payroll query': { en: 'Payroll query', ko: '급여 문의' },
+  'genericCategory.Contract or agreement': { en: 'Contract or agreement', ko: '계약서·협약' },
+  'genericCategory.Membership or subscription': { en: 'Membership or subscription', ko: '회원권·구독' },
+  'genericCategory.Insurance': { en: 'Insurance', ko: '보험' },
+  'genericCategory.Event or sponsorship': { en: 'Event or sponsorship', ko: '행사·후원' },
+  'genericCategory.Donation': { en: 'Donation', ko: '기부' },
+  'genericCategory.Facilities': { en: 'Facilities', ko: '시설' },
+  'genericCategory.General approval': { en: 'General approval', ko: '일반 결재' },
+  'genericCategory.Equipment replacement': { en: 'Equipment replacement', ko: '장비 교체' },
+  'genericCategory.Other': { en: 'Other', ko: '기타' },
 
   /* --- payment methods --- */
   'payment.PERSONAL': { en: 'Personal money (reimburse me)', ko: '개인 지출 (환급 요청)' },

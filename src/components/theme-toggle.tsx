@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useT } from '@/lib/i18n/client';
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { DropdownContent, DropdownItem, DropdownMenu, DropdownTrigger } from '@/components/ui/overlays';
 import { Button } from '@/components/ui/primitives';
@@ -50,6 +51,8 @@ export function ThemeToggle() {
     return () => mq.removeEventListener('change', onChange);
   }, [theme]);
 
+  const t = useT();
+
   function choose(next: Theme) {
     localStorage.setItem(KEY, next);
     apply(next);
@@ -61,19 +64,22 @@ export function ThemeToggle() {
   return (
     <DropdownMenu>
       <DropdownTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={`Theme: ${theme}. Change theme`}>
+        <Button variant="ghost" size="icon" aria-label={t('theme.change', { theme: t(`theme.${theme}`) })}>
           <Icon />
         </Button>
       </DropdownTrigger>
       <DropdownContent>
         <DropdownItem onSelect={() => choose('light')}>
-          <Sun className="size-4" /> Light {theme === 'light' && <span className="ml-auto text-accent">✓</span>}
+          <Sun className="size-4" /> {t('theme.light')}
+          {theme === 'light' && <span className="ml-auto text-accent">✓</span>}
         </DropdownItem>
         <DropdownItem onSelect={() => choose('dark')}>
-          <Moon className="size-4" /> Dark {theme === 'dark' && <span className="ml-auto text-accent">✓</span>}
+          <Moon className="size-4" /> {t('theme.dark')}
+          {theme === 'dark' && <span className="ml-auto text-accent">✓</span>}
         </DropdownItem>
         <DropdownItem onSelect={() => choose('system')}>
-          <Monitor className="size-4" /> System {theme === 'system' && <span className="ml-auto text-accent">✓</span>}
+          <Monitor className="size-4" /> {t('theme.system')}
+          {theme === 'system' && <span className="ml-auto text-accent">✓</span>}
         </DropdownItem>
       </DropdownContent>
     </DropdownMenu>

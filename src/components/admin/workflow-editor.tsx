@@ -5,13 +5,15 @@ import { useRouter } from 'next/navigation';
 import { GitBranch, Info, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { Button, Card, CardBody, CardHeader, Input, Select } from '@/components/ui/primitives';
 import { saveWorkflowAction, type AdminResult } from '@/server/actions/admin';
-import { APPROVER_ROLES, REQUEST_TYPE_META, type RequestType } from '@/types/domain';
-import { humanize } from '@/lib/utils';
+import { useT } from '@/lib/i18n/client';
+import { APPROVER_ROLES } from '@/types/domain';
 import { cn } from '@/lib/utils';
 
 export interface WorkflowStepDto {
   name: string;
   approverRole: string;
+  /** Fixed approver. Null means resolve `approverRole` per request. */
+  approverEmployeeId: string | null;
   slaHours: number;
   conditionType: string;
   conditionValue: string | null;
@@ -25,22 +27,29 @@ export interface WorkflowDto {
   steps: WorkflowStepDto[];
 }
 
+export interface ApproverOption {
+  id: string;
+  name: string;
+  position: string | null;
+  departmentCode: string | null;
+}
+
 const CONDITIONS = [
-  { value: 'ALWAYS', label: 'Always', needsValue: false, hint: 'This step is always required.' },
-  { value: 'AMOUNT_GT', label: 'Amount above', needsValue: true, hint: 'Only when the request value exceeds this figure.' },
-  { value: 'DAYS_GT', label: 'Days above', needsValue: true, hint: 'Only when the duration exceeds this many days.' },
-  { value: 'INTERNATIONAL', label: 'International travel', needsValue: false, hint: 'Only when the trip crosses a border.' },
-  { value: 'QUOTATIONS_LT', label: 'Quotations fewer than', needsValue: true, hint: 'Only when fewer quotations are attached.' },
+  { value: 'ALWAYS', needsValue: false },
+  { value: 'AMOUNT_GT', needsValue: true },
+  { value: 'DAYS_GT', needsValue: true },
+  { value: 'INTERNATIONAL', needsValue: false },
+  { value: 'QUOTATIONS_LT', needsValue: true },
 ];
 
-export function WorkflowEditor({ workflow }: { workflow: WorkflowDto }) {
+export function WorkflowEditor({ workflow, people }: { workflow: WorkflowDto; people: ApproverOption[] }) {
   const router = useRouter();
+  const t = useT();
   const [steps, setSteps] = React.useState<WorkflowStepDto[]>(workflow.steps);
   const [description, setDescription] = React.useState(workflow.description ?? '');
   const [pending, setPending] = React.useState(false);
   const [result, setResult] = React.useState<AdminResult | null>(null);
 
-  const meta = REQUEST_TYPE_META[workflow.requestType as RequestType];
   const dirty =
     JSON.stringify(steps) !== JSON.stringify(workflow.steps) || description !== (workflow.description ?? '');
 
@@ -67,6 +76,7 @@ export function WorkflowEditor({ workflow }: { workflow: WorkflowDto }) {
       steps: steps.map((s) => ({
         name: s.name,
         approverRole: s.approverRole,
+        approverEmployeeId: s.approverEmployeeId,
         slaHours: s.slaHours,
         conditionType: s.conditionType,
         conditionValue: s.conditionValue === null || s.conditionValue === '' ? null : Number(s.conditionValue),
@@ -80,25 +90,28 @@ export function WorkflowEditor({ workflow }: { workflow: WorkflowDto }) {
   return (
     <Card>
       <CardHeader
-        title={meta?.label ?? workflow.name}
-        description={`${steps.length} step${steps.length === 1 ? '' : 's'} · ${meta?.prefix ?? ''}`}
+        title={t(`type.${workflow.requestType}`)}
+        description={t('wf.steps', { count: steps.length })}
         icon={<GitBranch className="size-4" />}
         actions={
           <Button size="sm" variant={dirty ? 'primary' : 'secondary'} disabled={!dirty || pending} onClick={save}>
             {pending ? <Loader2 className="animate-spin" /> : <Save />}
-            Save
+            {t('action.save')}
           </Button>
         }
       />
       <CardBody className="space-y-3">
         <label className="block">
-          <span className="mb-1 block text-[11px] font-medium text-text-muted">Description</span>
+          <span className="mb-1 block text-[11px] font-medium text-text-muted">{t('label.description')}</span>
           <Input value={description} onChange={(e) => setDescription(e.target.value)} className="h-8" />
         </label>
 
         <ol className="space-y-2">
           {steps.map((step, i) => {
             const condition = CONDITIONS.find((c) => c.value === step.conditionType) ?? CONDITIONS[0];
+            // A named approver is stored on the step; clearing it falls back to the role.
+            const byPerson = step.approverEmployeeId !== null;
+
             return (
               <li key={i} className="rounded-[var(--radius-control)] border border-border-subtle bg-surface-sunken p-2.5">
                 <div className="mb-2 flex items-center gap-2">
@@ -106,18 +119,24 @@ export function WorkflowEditor({ workflow }: { workflow: WorkflowDto }) {
                     {i + 1}
                   </span>
                   <Input
-                    aria-label={`Step ${i + 1} name`}
+                    aria-label={t('wf.stepName', { n: i + 1 })}
                     value={step.name}
                     onChange={(e) => update(i, { name: e.target.value })}
                     className="h-8 flex-1"
                   />
-                  <Button size="iconSm" variant="ghost" aria-label={`Move step ${i + 1} up`} disabled={i === 0} onClick={() => move(i, -1)}>
+                  <Button
+                    size="iconSm"
+                    variant="ghost"
+                    aria-label={t('wf.moveUp', { n: i + 1 })}
+                    disabled={i === 0}
+                    onClick={() => move(i, -1)}
+                  >
                     ↑
                   </Button>
                   <Button
                     size="iconSm"
                     variant="ghost"
-                    aria-label={`Move step ${i + 1} down`}
+                    aria-label={t('wf.moveDown', { n: i + 1 })}
                     disabled={i === steps.length - 1}
                     onClick={() => move(i, 1)}
                   >
@@ -126,7 +145,7 @@ export function WorkflowEditor({ workflow }: { workflow: WorkflowDto }) {
                   <Button
                     size="iconSm"
                     variant="ghost"
-                    aria-label={`Remove step ${i + 1}`}
+                    aria-label={t('wf.removeStep', { n: i + 1 })}
                     disabled={steps.length === 1}
                     onClick={() => setSteps((p) => p.filter((_, idx) => idx !== i))}
                   >
@@ -136,18 +155,56 @@ export function WorkflowEditor({ workflow }: { workflow: WorkflowDto }) {
 
                 <div className="grid gap-2 sm:grid-cols-4">
                   <label className="block">
-                    <span className="mb-1 block text-[10px] text-text-muted">Approver</span>
-                    <Select value={step.approverRole} onChange={(e) => update(i, { approverRole: e.target.value })} className="h-8">
-                      {APPROVER_ROLES.map((r) => (
-                        <option key={r} value={r}>
-                          {humanize(r)}
-                        </option>
-                      ))}
+                    <span className="mb-1 block text-[10px] text-text-muted">{t('wf.approverType')}</span>
+                    <Select
+                      value={byPerson ? 'PERSON' : 'ROLE'}
+                      onChange={(e) =>
+                        update(i, {
+                          approverEmployeeId: e.target.value === 'PERSON' ? (people[0]?.id ?? null) : null,
+                        })
+                      }
+                      className="h-8"
+                    >
+                      <option value="ROLE">{t('wf.byRole')}</option>
+                      <option value="PERSON">{t('wf.byPerson')}</option>
                     </Select>
                   </label>
 
+                  {byPerson ? (
+                    <label className="block">
+                      <span className="mb-1 block text-[10px] text-text-muted">{t('wf.namedApprover')}</span>
+                      <Select
+                        value={step.approverEmployeeId ?? ''}
+                        onChange={(e) => update(i, { approverEmployeeId: e.target.value || null })}
+                        className="h-8"
+                      >
+                        {people.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                            {p.departmentCode ? ` · ${p.departmentCode}` : ''}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  ) : (
+                    <label className="block">
+                      <span className="mb-1 block text-[10px] text-text-muted">{t('wf.approver')}</span>
+                      <Select
+                        value={step.approverRole}
+                        onChange={(e) => update(i, { approverRole: e.target.value })}
+                        className="h-8"
+                      >
+                        {APPROVER_ROLES.map((r) => (
+                          <option key={r} value={r}>
+                            {t(`approverRole.${r}`)}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  )}
+
                   <label className="block">
-                    <span className="mb-1 block text-[10px] text-text-muted">SLA (hours)</span>
+                    <span className="mb-1 block text-[10px] text-text-muted">{t('wf.slaHours')}</span>
                     <Input
                       type="number"
                       min={1}
@@ -159,7 +216,7 @@ export function WorkflowEditor({ workflow }: { workflow: WorkflowDto }) {
                   </label>
 
                   <label className="block">
-                    <span className="mb-1 block text-[10px] text-text-muted">Required when</span>
+                    <span className="mb-1 block text-[10px] text-text-muted">{t('wf.requiredWhen')}</span>
                     <Select
                       value={step.conditionType}
                       onChange={(e) =>
@@ -174,14 +231,14 @@ export function WorkflowEditor({ workflow }: { workflow: WorkflowDto }) {
                     >
                       {CONDITIONS.map((c) => (
                         <option key={c.value} value={c.value}>
-                          {c.label}
+                          {t(`wf.cond.${c.value}`)}
                         </option>
                       ))}
                     </Select>
                   </label>
 
                   <label className={cn('block', !condition.needsValue && 'opacity-40')}>
-                    <span className="mb-1 block text-[10px] text-text-muted">Threshold</span>
+                    <span className="mb-1 block text-[10px] text-text-muted">{t('wf.threshold')}</span>
                     <Input
                       type="number"
                       min={0}
@@ -193,7 +250,9 @@ export function WorkflowEditor({ workflow }: { workflow: WorkflowDto }) {
                   </label>
                 </div>
 
-                <p className="mt-1.5 text-[10px] text-text-subtle">{condition.hint}</p>
+                <p className="mt-1.5 text-[10px] text-text-subtle">
+                  {t(byPerson ? 'wf.byPersonHint' : 'wf.byRoleHint')} {t(`wf.cond.${condition.value}.hint`)}
+                </p>
               </li>
             );
           })}
@@ -203,11 +262,21 @@ export function WorkflowEditor({ workflow }: { workflow: WorkflowDto }) {
           size="sm"
           variant="secondary"
           onClick={() =>
-            setSteps((p) => [...p, { name: 'New step', approverRole: 'MANAGER', slaHours: 24, conditionType: 'ALWAYS', conditionValue: null }])
+            setSteps((p) => [
+              ...p,
+              {
+                name: t('wf.newStep'),
+                approverRole: 'MANAGER',
+                approverEmployeeId: null,
+                slaHours: 24,
+                conditionType: 'ALWAYS',
+                conditionValue: null,
+              },
+            ])
           }
           disabled={steps.length >= 8}
         >
-          <Plus /> Add step
+          <Plus /> {t('wf.addStep')}
         </Button>
 
         {result && (
@@ -226,8 +295,7 @@ export function WorkflowEditor({ workflow }: { workflow: WorkflowDto }) {
 
         <p className="flex gap-1.5 border-t border-border-subtle pt-2.5 text-[11px] text-text-subtle">
           <Info className="mt-px size-3 shrink-0" />
-          Changes apply to requests submitted from now on. Requests already in the chain keep the route they were given
-          at submission, so approval history is never rewritten.
+          {t('wf.appliesNote')}
         </p>
       </CardBody>
     </Card>

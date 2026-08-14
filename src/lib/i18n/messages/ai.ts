@@ -12,6 +12,10 @@ import type { MessageTable } from '../types';
  */
 export const ai: MessageTable = {
   /* --- panel chrome --- */
+  'ai.summary': { en: 'Summary', ko: '요약' },
+  'ai.evidence': { en: 'Evidence', ko: '근거' },
+  'ai.risk': { en: 'Risk', ko: '위험' },
+  'ai.recommendedAction': { en: 'Recommended action', ko: '권장 조치' },
   'ai.review': { en: 'AI review', ko: 'AI 검토' },
   'ai.checks': { en: 'Checks', ko: '검사 항목' },
   'ai.allClear': { en: 'All clear', ko: '이상 없음' },
@@ -158,6 +162,7 @@ export const ai: MessageTable = {
     en: 'Running the built-in query engine — no external service is called. Set AI_PROVIDER=anthropic with an API key for model-written prose over the same figures.',
     ko: '내장 질의 엔진으로 동작 중이며 외부 서비스를 호출하지 않습니다. 동일한 수치에 모델이 작성한 문장을 원하면 AI_PROVIDER=anthropic과 API 키를 설정하세요.',
   },
+  'assist.querying': { en: 'Querying your records…', ko: '데이터를 조회하는 중…' },
   'assist.suggest1': { en: 'Give me this month’s management summary', ko: '이번 달 경영 요약을 알려주세요' },
   'assist.suggest2': { en: 'Why did travel expenses change last month?', ko: '지난달 출장비가 왜 변했나요?' },
   'assist.suggest3': { en: 'How much did SCM spend this quarter?', ko: 'SCM이 이번 분기에 얼마를 썼나요?' },

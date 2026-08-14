@@ -5,29 +5,25 @@ import { requireSession } from '@/lib/auth/session';
 import { can } from '@/lib/rbac';
 import { PageHeader } from '@/components/page-header';
 import { ForbiddenPage } from '@/components/ui/states';
-import { REQUEST_TYPES, REQUEST_TYPE_META, type RequestType } from '@/types/domain';
+import { getI18n, getT } from '@/lib/i18n/server';
+import { REQUEST_TYPES, REQUEST_TYPE_META } from '@/types/domain';
 
-export const metadata: Metadata = { title: 'New request' };
-
-const BLURB: Record<RequestType, string> = {
-  LEAVE: 'Annual, sick or unpaid leave. Working days, public holidays and your balance are calculated for you.',
-  BUSINESS_TRIP: 'Domestic or international travel with a cost breakdown. Compared against previous trips to the same city.',
-  PURCHASE: 'Buy goods or services. Checked against price history, vendor records and the department budget.',
-  EXPENSE: 'Claim money back. Receipts are structured automatically and checked for duplicates.',
-  HR: 'Certificates, contract changes, training, equipment and other people requests.',
-  GENERAL: 'Anything that needs a decision but does not fit the other types.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('new.breadcrumb') };
+}
 
 export default async function NewRequestPage() {
   const session = await requireSession();
-  if (!can(session, 'request.create')) return <ForbiddenPage what="creating requests" />;
+  const { t } = await getI18n();
+  if (!can(session, 'request.create')) return <ForbiddenPage what={t('new.creatingRequests')} />;
 
   return (
     <>
       <PageHeader
-        breadcrumbs={[{ label: 'My Requests', href: '/requests' }, { label: 'New request' }]}
-        title="What do you need?"
-        description="Pick a type. Each form asks for the minimum — the system works out the routing, the policy checks and the budget impact."
+        breadcrumbs={[{ label: t('nav.requests'), href: '/requests' }, { label: t('new.breadcrumb') }]}
+        title={t('new.title')}
+        description={t('new.subtitle')}
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -46,10 +42,10 @@ export default async function NewRequestPage() {
                 </span>
                 <div className="min-w-0">
                   <p className="flex items-center gap-1.5 text-sm font-semibold text-text">
-                    {meta.label}
+                    {t(`type.${type}`)}
                     <span className="font-mono text-[10px] font-normal text-text-subtle">{meta.prefix}</span>
                   </p>
-                  <p className="mt-1 text-xs leading-relaxed text-text-muted">{BLURB[type]}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-text-muted">{t(`new.blurb.${type}`)}</p>
                 </div>
               </div>
             </Link>
@@ -59,7 +55,7 @@ export default async function NewRequestPage() {
 
       <p className="mt-5 flex items-center gap-1.5 text-xs text-text-subtle">
         <Icons.Sparkles className="size-3.5" />
-        Every form has a “Draft with AI” box — describe the request in a sentence and it fills the fields for you to check.
+        {t('new.aiHint')}
       </p>
     </>
   );

@@ -6,8 +6,14 @@
  *
  * This is the "is every button real" check at the routing level — a page that
  * throws returns 500 here rather than being discovered by a human clicking around.
+ *
+ * Each page is also scanned for untranslated message keys. Every role is swept in
+ * both languages, because a key that only exists in one namespace still renders
+ * as a literal "approverRole.CTO" for the reader who hits it.
  */
 const BASE = process.argv[2] ?? 'http://localhost:3000';
+
+const LOCALES = ['en', 'ko'] as const;
 
 const ACCOUNTS = [
   { label: 'Director', email: 'aiden@ohmyhotel.com' },
@@ -52,6 +58,39 @@ const ROUTES = [
 const REPORTS = ['approvals', 'leave', 'leave-balances', 'travel', 'expenses', 'procurement', 'budgets', 'departments', 'sla', 'ai-risk'];
 
 /**
+ * Finds message keys that reached the DOM as text.
+ *
+ * `translate()` returns the key itself when it is missing, which is deliberate —
+ * a visible "approvals.title" is a bug report. This turns that visible bug into a
+ * failing test. Keys built dynamically (`t(\`type.${x}\`)`) are exactly the ones
+ * static analysis cannot see, so this is the net that catches them.
+ */
+const KEY_IN_TEXT = />\s*([a-z][a-zA-Z]*\.[a-zA-Z][\w.]*)\s*</g;
+
+/** Identifiers the UI shows on purpose: setting names, file names, env vars. */
+const NOT_A_KEY = /\.(pdf|png|jpe?g|csv|com|ts|tsx|js|css|local|env)$/;
+const DELIBERATE = new Set([
+  'ai.enabled',
+  'approval.defaultSlaHours',
+  'approver.CEO',
+  'approver.CTO',
+  'approver.DIRECTOR',
+  'company.baseCurrency',
+  'company.name',
+  'demo.mode',
+]);
+
+function untranslatedKeys(html: string): string[] {
+  const found = new Set<string>();
+  for (const m of html.matchAll(KEY_IN_TEXT)) {
+    const candidate = m[1];
+    if (NOT_A_KEY.test(candidate) || DELIBERATE.has(candidate)) continue;
+    found.add(candidate);
+  }
+  return [...found];
+}
+
+/**
  * Signs in via the test-support endpoint, which only responds when the server was
  * started with ENABLE_TEST_LOGIN=1 (see `npm run test:routes`).
  */
@@ -82,14 +121,25 @@ async function main() {
     }
 
     const results: string[] = [];
-    for (const route of ROUTES) {
-      const res = await fetch(`${BASE}${route}`, { headers: { cookie }, redirect: 'manual' });
-      checks++;
-      // 200 = rendered (may be a 403 panel, which is a correct outcome).
-      // 307 = redirected, also acceptable for a guarded route.
-      if (res.status >= 500) {
-        results.push(`  ✗ ${route} → ${res.status}`);
-        failures++;
+    for (const locale of LOCALES) {
+      const headers = { cookie: `${cookie}; ohmy_locale=${locale}` };
+      for (const route of ROUTES) {
+        const res = await fetch(`${BASE}${route}`, { headers, redirect: 'manual' });
+        checks++;
+        // 200 = rendered (may be a 403 panel, which is a correct outcome).
+        // 307 = redirected, also acceptable for a guarded route.
+        if (res.status >= 500) {
+          results.push(`  ✗ [${locale}] ${route} → ${res.status}`);
+          failures++;
+          continue;
+        }
+        if (res.status === 200) {
+          const leaked = untranslatedKeys(await res.text());
+          if (leaked.length) {
+            results.push(`  ✗ [${locale}] ${route} → untranslated: ${leaked.slice(0, 5).join(', ')}`);
+            failures++;
+          }
+        }
       }
     }
 

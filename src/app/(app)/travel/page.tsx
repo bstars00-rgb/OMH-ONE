@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Plane, Plus } from 'lucide-react';
 import { requireSession } from '@/lib/auth/session';
-import { scopeLabel } from '@/lib/rbac';
+import { scopeLabelKey } from '@/lib/rbac';
 import { getTravelStats } from '@/server/queries/modules';
 import { listRequests } from '@/server/queries/requests';
 import { getUpcomingTrips } from '@/server/queries/dashboard';
@@ -14,14 +14,18 @@ import { StatTile } from '@/components/stat-tile';
 import { BreakdownChart, MonthlySpendChart, RankedList } from '@/components/module-page';
 import { Card, buttonVariants } from '@/components/ui/primitives';
 import { StatusBadge } from '@/components/ui/badges';
-import { formatCompact, formatMoney } from '@/lib/money';
-import { formatRange } from '@/lib/dates';
+import { getI18n, getT } from '@/lib/i18n/server';
+import { formatCompactL, formatMoneyL, formatRangeL } from '@/lib/i18n/format';
 
-export const metadata: Metadata = { title: 'Business Trips' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('travel.title') };
+}
 
 export default async function TravelPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const session = await requireSession();
   const sp = await searchParams;
+  const { t, locale } = await getI18n();
 
   const filters = parseRequestFilters(sp, { mode: 'all', type: ['BUSINESS_TRIP'], sort: 'newest', pageSize: 20 });
   const [stats, list, upcoming] = await Promise.all([
@@ -32,40 +36,58 @@ export default async function TravelPage({ searchParams }: { searchParams: Promi
 
   const params = toURLSearchParams(sp);
   const spendDelta = stats.spendPrevMonth > 0 ? Math.round(((stats.spendMonth - stats.spendPrevMonth) / stats.spendPrevMonth) * 100) : null;
+  const scope = scopeLabelKey(session);
+  const money = (v: number) => formatMoneyL(locale, v);
+  const compact = (v: number) => formatCompactL(locale, v);
 
   return (
     <>
       <PageHeader
-        title="Business Trips"
-        description={`Travel activity and cost across ${scopeLabel(session).toLowerCase()}.`}
+        title={t('travel.title')}
+        description={t('travel.subtitle', { scope: t(scope.key, scope.vars) })}
         actions={
           <Link href="/requests/new/BUSINESS_TRIP" className={buttonVariants({ variant: 'primary', size: 'md' })}>
-            <Plus /> New trip
+            <Plus /> {t('travel.new')}
           </Link>
         }
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-        <StatTile label="Upcoming trips" value={stats.upcoming} sublabel={`${stats.travellersUpcoming} travellers`} icon="Plane" />
         <StatTile
-          label="Travel spend (MTD)"
-          value={formatCompact(stats.spendMonth)}
+          label={t('travel.upcoming')}
+          value={stats.upcoming}
+          sublabel={t('travel.travellers', { count: stats.travellersUpcoming })}
+          icon="Plane"
+        />
+        <StatTile
+          label={t('travel.spendMtd')}
+          value={compact(stats.spendMonth)}
           delta={spendDelta === null ? null : { value: spendDelta }}
-          sublabel="vs last month"
+          sublabel={t('label.vsLastMonth')}
           icon="Wallet"
         />
-        <StatTile label="Average trip cost" value={formatCompact(stats.avgTripCost)} sublabel="Last 12 months" icon="Calculator" />
-        <StatTile label="Per traveller" value={formatCompact(stats.avgPerTraveller)} sublabel="Last 12 months" icon="User" />
         <StatTile
-          label="Top destination"
+          label={t('travel.avgTripCost')}
+          value={compact(stats.avgTripCost)}
+          sublabel={t('label.last12Months')}
+          icon="Calculator"
+        />
+        <StatTile
+          label={t('travel.perTraveller')}
+          value={compact(stats.avgPerTraveller)}
+          sublabel={t('label.last12Months')}
+          icon="User"
+        />
+        <StatTile
+          label={t('travel.topDestination')}
           value={stats.byCountry[0]?.name ?? '—'}
-          sublabel={stats.byCountry[0] ? formatCompact(stats.byCountry[0].value) : 'No data'}
+          sublabel={stats.byCountry[0] ? compact(stats.byCountry[0].value) : t('label.noData')}
           icon="MapPin"
         />
         <StatTile
-          label="Awaiting approval"
+          label={t('travel.awaitingApproval')}
           value={stats.pending}
-          sublabel="Trips in the chain"
+          sublabel={t('travel.tripsInChain')}
           icon="Clock"
           href="/approvals?type=BUSINESS_TRIP"
           tone={stats.pending > 0 ? 'warning' : 'default'}
@@ -74,50 +96,49 @@ export default async function TravelPage({ searchParams }: { searchParams: Promi
 
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
         <MonthlySpendChart
-          title="Travel spend by month"
-          subtitle="Approved trips, base currency USD"
+          title={t('travel.byMonth')}
+          subtitle={t('travel.byMonthSub')}
           monthly={stats.monthly}
           current={stats.spendMonth}
           previous={stats.spendPrevMonth}
         />
         <BreakdownChart
-          title="Cost by destination country"
-          subtitle="Approved trips, last 12 months"
+          title={t('travel.byCountry')}
+          subtitle={t('travel.byCountrySub')}
           data={stats.byCountry}
-          humanizeNames={false}
         />
-        <BreakdownChart title="Cost by department" subtitle="Approved trips, last 12 months" data={stats.byDepartment} humanizeNames={false} />
+        <BreakdownChart title={t('travel.byDept')} subtitle={t('travel.byCountrySub')} data={stats.byDepartment} />
 
         <RankedList
-          title="Most frequent travellers"
-          description="Cost apportioned per traveller across the last 12 months"
-          emptyMessage="No approved trips in your scope yet."
-          items={stats.topTravellers.map((t) => ({
-            key: t.id,
-            primary: t.name,
-            secondary: `${t.trips} trip${t.trips === 1 ? '' : 's'}`,
-            value: formatMoney(t.value),
-            href: `/people/${t.id}`,
+          title={t('travel.topTravellers')}
+          description={t('travel.topTravellersSub')}
+          emptyMessage={t('travel.topTravellersEmpty')}
+          items={stats.topTravellers.map((row) => ({
+            key: row.id,
+            primary: row.name,
+            secondary: t('travel.tripCount', { count: row.trips }),
+            value: money(row.value),
+            href: `/people/${row.id}`,
           }))}
         />
       </div>
 
       <RankedList
-        title="Next departures"
-        description="Approved and in-flight trips, soonest first"
-        emptyMessage="No upcoming trips."
-        items={upcoming.map((t) => ({
-          key: t.requestId,
-          primary: `${t.city}, ${t.country}`,
-          secondary: `${t.leadName}${t.travellers > 1 ? ` +${t.travellers - 1}` : ''} · ${formatRange(t.startDate, t.endDate)}`,
-          value: formatMoney(t.cost),
-          href: `/requests/${t.requestId}`,
-          badge: <StatusBadge status={t.status} />,
+        title={t('travel.nextDepartures')}
+        description={t('travel.nextDeparturesSub')}
+        emptyMessage={t('travel.noUpcoming')}
+        items={upcoming.map((row) => ({
+          key: row.requestId,
+          primary: `${row.city}, ${row.country}`,
+          secondary: `${row.leadName}${row.travellers > 1 ? ` +${row.travellers - 1}` : ''} · ${formatRangeL(locale, row.startDate, row.endDate)}`,
+          value: money(row.cost),
+          href: `/requests/${row.requestId}`,
+          badge: <StatusBadge status={row.status} />,
         }))}
       />
 
       <div className="mt-5">
-        <h2 className="mb-3 text-sm font-semibold text-text">All trip requests</h2>
+        <h2 className="mb-3 text-sm font-semibold text-text">{t('travel.allRequests')}</h2>
         <FilterBar showType={false} />
         <Card className="overflow-hidden">
           <RequestTable
@@ -125,14 +146,14 @@ export default async function TravelPage({ searchParams }: { searchParams: Promi
             total={list.total}
             page={list.page}
             pageSize={list.pageSize}
-            baseParams={params}
+            baseParams={params.toString()}
             currentSort={filters.sort}
             columns={['number', 'title', 'requester', 'department', 'amount', 'status', 'submitted', 'approver', 'risk']}
-            emptyTitle="No business trips match these filters"
-            emptyDescription="Try clearing a filter, or create a new trip request."
+            emptyTitle={t('travel.emptyFiltered')}
+            emptyDescription={t('travel.emptyFilteredHint')}
             emptyAction={
               <Link href="/requests/new/BUSINESS_TRIP" className={buttonVariants({ variant: 'primary', size: 'sm' })}>
-                <Plane /> New trip
+                <Plane /> {t('travel.new')}
               </Link>
             }
           />

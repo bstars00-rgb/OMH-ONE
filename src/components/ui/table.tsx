@@ -1,8 +1,6 @@
 import * as React from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { buttonVariants } from './primitives';
 
 /**
  * Dense enterprise table. Rows are 40px so ~18 fit on a 1080p screen.
@@ -128,62 +126,4 @@ export function RowLink({ href, label, children }: { href: string; label: string
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Pagination — URL-driven, so a page survives reload and can be shared */
-/* ------------------------------------------------------------------ */
-
-export function Pagination({
-  page,
-  pageSize,
-  total,
-  makeHref,
-}: {
-  page: number;
-  pageSize: number;
-  total: number;
-  makeHref: (page: number) => string;
-}) {
-  const pages = Math.max(1, Math.ceil(total / pageSize));
-  if (total === 0) return null;
-  const from = (page - 1) * pageSize + 1;
-  const to = Math.min(total, page * pageSize);
-
-  const disabled = 'pointer-events-none opacity-40';
-
-  return (
-    <nav
-      className="flex items-center justify-between border-t border-border-subtle px-4 py-2.5"
-      aria-label="Pagination"
-    >
-      <p className="text-xs text-text-muted tabular">
-        <span className="font-medium text-text">
-          {from}–{to}
-        </span>{' '}
-        of <span className="font-medium text-text">{total.toLocaleString()}</span>
-      </p>
-      <div className="flex items-center gap-1.5">
-        <Link
-          href={makeHref(page - 1)}
-          aria-label="Previous page"
-          aria-disabled={page <= 1}
-          tabIndex={page <= 1 ? -1 : undefined}
-          className={cn(buttonVariants({ variant: 'secondary', size: 'iconSm' }), page <= 1 && disabled)}
-        >
-          <ChevronLeft />
-        </Link>
-        <span className="px-1 text-xs text-text-muted tabular">
-          {page} / {pages}
-        </span>
-        <Link
-          href={makeHref(page + 1)}
-          aria-label="Next page"
-          aria-disabled={page >= pages}
-          tabIndex={page >= pages ? -1 : undefined}
-          className={cn(buttonVariants({ variant: 'secondary', size: 'iconSm' }), page >= pages && disabled)}
-        >
-          <ChevronRight />
-        </Link>
-      </div>
-    </nav>
-  );
-}
+export { Pagination } from './pagination';

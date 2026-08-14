@@ -5,9 +5,10 @@ import { CalendarDays, Info } from 'lucide-react';
 import { Card, CardBody, CardHeader, Checkbox, Field, Input, Select, Textarea, Progress } from '@/components/ui/primitives';
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
 import { createLeaveAction } from '@/server/actions/create';
-import { calcWorkingDays, formatRange, toISODate } from '@/lib/dates';
+import { calcWorkingDays, toISODate } from '@/lib/dates';
+import { useI18n } from '@/lib/i18n/client';
+import { formatRangeL } from '@/lib/i18n/format';
 import { LEAVE_TYPES } from '@/types/domain';
-import { humanize } from '@/lib/utils';
 import type { LeaveFormData } from '@/server/queries/form-context';
 
 export function LeaveForm({
@@ -17,6 +18,7 @@ export function LeaveForm({
   data: LeaveFormData;
   holidays: { holidayDate: string; name: string }[];
 }) {
+  const { t, locale } = useI18n();
   const today = toISODate(new Date());
   const [leaveType, setLeaveType] = React.useState<string>('ANNUAL');
   const [startDate, setStartDate] = React.useState('');
@@ -60,26 +62,26 @@ export function LeaveForm({
         <AiDraftBox type="LEAVE" onDraft={applyDraft} />
 
         <Card>
-          <CardHeader title="Leave detail" icon={<CalendarDays className="size-4" />} />
+          <CardHeader title={t('content.leaveTitle')} icon={<CalendarDays className="size-4" />} />
           <CardBody className="grid gap-4 sm:grid-cols-2">
-            <Field label="Leave type" htmlFor="leaveType" required error={errors.leaveType}>
+            <Field label={t('content.leaveType')} htmlFor="leaveType" required error={errors.leaveType}>
               <Select id="leaveType" value={leaveType} onChange={(e) => setLeaveType(e.target.value)}>
-                {LEAVE_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {humanize(t)}
+                {LEAVE_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {t(`leaveType.${type}`)}
                   </option>
                 ))}
               </Select>
             </Field>
 
             <Field
-              label="Hand over to"
+              label={t('leaveForm.handoverTo')}
               htmlFor="handoverTo"
-              hint="Who covers your work while you are away."
+              hint={t('leaveForm.handoverHint')}
               error={errors.handoverTo}
             >
               <Select id="handoverTo" value={handoverTo} onChange={(e) => setHandoverTo(e.target.value)}>
-                <option value="">Not assigned</option>
+                <option value="">{t('label.notAssigned')}</option>
                 {data.colleagues.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -88,7 +90,7 @@ export function LeaveForm({
               </Select>
             </Field>
 
-            <Field label="First day" htmlFor="startDate" required error={errors.startDate}>
+            <Field label={t('leaveForm.firstDay')} htmlFor="startDate" required error={errors.startDate}>
               <Input
                 id="startDate"
                 type="date"
@@ -99,7 +101,7 @@ export function LeaveForm({
               />
             </Field>
 
-            <Field label="Last day" htmlFor="endDate" required error={errors.endDate}>
+            <Field label={t('leaveForm.lastDay')} htmlFor="endDate" required error={errors.endDate}>
               <Input
                 id="endDate"
                 type="date"
@@ -113,22 +115,22 @@ export function LeaveForm({
             <div className="flex flex-wrap gap-4 sm:col-span-2">
               <label className="flex items-center gap-2 text-xs text-text">
                 <Checkbox checked={halfDayStart} onChange={(e) => setHalfDayStart(e.target.checked)} />
-                Half day on the first day
+                {t('leaveForm.halfStart')}
               </label>
               <label className="flex items-center gap-2 text-xs text-text">
                 <Checkbox checked={halfDayEnd} onChange={(e) => setHalfDayEnd(e.target.checked)} />
-                Half day on the last day
+                {t('leaveForm.halfEnd')}
               </label>
             </div>
 
-            <Field label="Reason" htmlFor="reason" className="sm:col-span-2" error={errors.reason}>
+            <Field label={t('label.reason')} htmlFor="reason" className="sm:col-span-2" error={errors.reason}>
               <Textarea id="reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
             </Field>
 
             <Field
-              label="Emergency contact"
+              label={t('content.emergencyContact')}
               htmlFor="emergencyContact"
-              hint="Optional — a number your manager can reach you on."
+              hint={t('leaveForm.emergencyHint')}
               error={errors.emergencyContact}
             >
               <Input
@@ -154,22 +156,26 @@ export function LeaveForm({
       {/* Live calculation panel — this is the "AI does the arithmetic" promise, visible */}
       <aside className="space-y-4">
         <Card>
-          <CardHeader title="Your balance" />
+          <CardHeader title={t('leave.yourBalance')} />
           <CardBody className="space-y-3">
             {data.balances.length === 0 ? (
-              <p className="text-xs text-text-muted">No balance is configured for you this year.</p>
+              <p className="text-xs text-text-muted">{t('leave.noBalance')}</p>
             ) : (
               data.balances.map((b) => (
                 <div key={b.leaveType}>
                   <div className="mb-1 flex items-baseline justify-between text-xs">
-                    <span className="font-medium text-text">{humanize(b.leaveType)}</span>
+                    <span className="font-medium text-text">{t(`leaveType.${b.leaveType}`)}</span>
                     <span className="text-text-muted tabular">
-                      {b.remaining} of {b.allowance} left
+                      {t('leaveForm.remainingOf', { remaining: b.remaining, allowance: b.allowance })}
                     </span>
                   </div>
-                  <Progress value={b.used + b.pending} max={b.allowance} label={`${b.leaveType} used`} />
+                  <Progress
+                    value={b.used + b.pending}
+                    max={b.allowance}
+                    label={t('leaveForm.usedAria', { type: t(`leaveType.${b.leaveType}`) })}
+                  />
                   <p className="mt-1 text-[10px] text-text-subtle tabular">
-                    {b.used} used · {b.pending} pending approval
+                    {t('leaveForm.usedPending', { used: b.used, pending: b.pending })}
                   </p>
                 </div>
               ))
@@ -178,24 +184,24 @@ export function LeaveForm({
         </Card>
 
         <Card className={calc ? '' : 'opacity-60'}>
-          <CardHeader title="This request" />
+          <CardHeader title={t('leaveForm.thisRequest')} />
           <CardBody className="space-y-2 text-xs">
             {!calc ? (
-              <p className="text-text-muted">Pick a start and end date to see the calculation.</p>
+              <p className="text-text-muted">{t('leaveForm.pickDates')}</p>
             ) : (
               <>
-                <Row label="Period" value={formatRange(startDate, endDate)} />
-                <Row label="Calendar days" value={String(calc.calendarDays)} />
-                <Row label="Weekend days" value={String(calc.weekendDays)} />
+                <Row label={t('label.period')} value={formatRangeL(locale, startDate, endDate)} />
+                <Row label={t('content.calendarDays')} value={String(calc.calendarDays)} />
+                <Row label={t('leaveForm.weekendDays')} value={String(calc.weekendDays)} />
                 <Row
-                  label="Public holidays"
+                  label={t('leaveForm.publicHolidays')}
                   value={calc.holidayDays > 0 ? `${calc.holidayDays} (${calc.holidayNames.join(', ')})` : '0'}
                 />
-                <Row label="Working days deducted" value={String(calc.workingDays)} strong />
+                <Row label={t('leaveForm.deducted')} value={String(calc.workingDays)} strong />
                 {remainingAfter !== null && (
                   <Row
-                    label="Balance after approval"
-                    value={`${remainingAfter} days`}
+                    label={t('leaveForm.balanceAfter')}
+                    value={t('unit.days', { count: remainingAfter })}
                     strong
                     tone={overdrawn ? 'bad' : 'good'}
                   />
@@ -204,14 +210,13 @@ export function LeaveForm({
                 {overdrawn && (
                   <p className="flex gap-1.5 rounded border border-rose-200 bg-rose-50 px-2 py-1.5 text-[11px] text-rose-800 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300">
                     <Info className="mt-px size-3 shrink-0" />
-                    This exceeds your remaining balance by {Math.abs(remainingAfter!)} day(s). You can still submit it —
-                    HR will see the shortfall on the approval screen.
+                    {t('leaveForm.overdrawn', { days: Math.abs(remainingAfter!) })}
                   </p>
                 )}
                 {calc.workingDays > 10 && (
                   <p className="flex gap-1.5 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
                     <Info className="mt-px size-3 shrink-0" />
-                    More than 10 consecutive working days — this will also need Director approval.
+                    {t('leaveForm.longLeave')}
                   </p>
                 )}
               </>

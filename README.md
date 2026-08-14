@@ -48,6 +48,7 @@ All 30 seeded employees have an account at `firstname.lastname@ohmyhotel.com` wi
 | **Analytics** | Dashboard, executive view, spend / approval / leave / travel / procurement analysis, SLA and bottleneck reporting |
 | **Admin** | Workflow builder, policy engine, users and roles, organization, system settings |
 | **Reports** | Ten preset CSV exports, permission-scoped and audit-logged |
+| **Language** | Full English and Korean, switchable from the header or the login screen — every screen, form, validation message, AI finding and workflow outcome |
 
 ### The parts worth looking at
 
@@ -56,6 +57,8 @@ All 30 seeded employees have an account at `firstname.lastname@ohmyhotel.com` wi
 **Routing is derived, not hard-coded.** Submitting a request evaluates each workflow step's condition against the request's own facts and materializes the steps that apply, bound to concrete people. A step routed to the requester is dropped, so self-approval is structurally impossible; consecutive steps resolving to the same person collapse into one decision. Editing a workflow never rewrites requests already in flight.
 
 **Aggregates cannot drift.** Submitting moves value into `committed`; approving moves it to `spent`; rejecting or withdrawing releases it — all in the same transaction as the status change. The same three-state movement applies to leave balances. The Budgets page and the approvals that produced it cannot disagree.
+
+**Korean is not a translation layer bolted on top.** Every message is an `{ en, ko }` pair, so a one-language message is a TypeScript error rather than a silent English fallback inside a Korean screen. The AI provider takes a locale context and composes each finding as a whole sentence per language — Korean is SOV with particles, so assembling one from English-ordered fragments produces something no Korean reader would accept. Domain errors and Zod schemas carry message keys rather than prose, and the server action resolves them, because only the server can read the locale cookie. `npm run i18n:audit` checks placeholder parity, duplicate keys, dead keys and enum-derived key families.
 
 **AI figures are database queries, not generated text.** The default provider computes every number it states: hotel rates against the policy table, trip cost against the average of prior approved trips to that city, unit price against prior purchases of the same item, receipt hashes against every other claim, leave against the actual balance and the team's calendar. Only the sentence construction is templated. Setting `AI_PROVIDER=anthropic` improves the prose, not the correctness of the findings.
 

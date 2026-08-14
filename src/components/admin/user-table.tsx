@@ -5,9 +5,11 @@ import { Card } from '@/components/ui/primitives';
 import { TableWrap, THead, TH, TBody } from '@/components/ui/table';
 import { UserRow, type UserDto } from './user-row';
 import type { AdminResult } from '@/server/actions/admin';
+import { useT } from '@/lib/i18n/client';
 import { cn } from '@/lib/utils';
 
 export function UserTable({ users }: { users: UserDto[] }) {
+  const t = useT();
   const [result, setResult] = React.useState<AdminResult | null>(null);
   const [query, setQuery] = React.useState('');
 
@@ -35,11 +37,11 @@ export function UserTable({ users }: { users: UserDto[] }) {
       )}
 
       <label className="mb-3 block">
-        <span className="sr-only">Search users</span>
+        <span className="sr-only">{t('users.searchAria')}</span>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name, email, role or department…"
+          placeholder={t('users.searchPlaceholder')}
           className="h-8 w-full max-w-sm rounded-[var(--radius-control)] border border-border-strong bg-surface px-3 text-sm text-text placeholder:text-text-subtle"
         />
       </label>
@@ -47,11 +49,11 @@ export function UserTable({ users }: { users: UserDto[] }) {
       <Card className="overflow-hidden">
         <TableWrap>
           <THead>
-            <TH>User</TH>
-            <TH>Dept</TH>
-            <TH>Roles</TH>
-            <TH>Status</TH>
-            <TH align="right">Actions</TH>
+            <TH>{t('users.user')}</TH>
+            <TH>{t('label.departmentShort')}</TH>
+            <TH>{t('users.rolesCol')}</TH>
+            <TH>{t('label.status')}</TH>
+            <TH align="right">{t('label.actions')}</TH>
           </THead>
           <TBody>
             {filtered.map((u) => (
@@ -62,8 +64,7 @@ export function UserTable({ users }: { users: UserDto[] }) {
       </Card>
 
       <p className="mt-3 text-[11px] text-text-subtle">
-        Showing {filtered.length} of {users.length} accounts. Role changes take effect on the user&apos;s next page load —
-        the session cookie carries identity only, and roles are re-read from the database on every request.
+        {t('users.showing', { shown: filtered.length, total: users.length })} {t('users.roleNote')}
       </p>
     </>
   );

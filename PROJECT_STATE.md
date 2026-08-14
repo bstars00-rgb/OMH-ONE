@@ -19,13 +19,16 @@ Checkpoint file. Updated at the end of every phase so work can resume from a col
 | 8 | Analytics, reports | ✅ |
 | 9 | Admin | ✅ |
 | 10 | QA + deployment readiness | ✅ |
+| 11 | Korean language pack, full UI coverage | ✅ |
+| 12 | Named approval chains, per-office separation | ✅ |
 
 ## What exists
 
-- **26 routes**, all rendering for all 7 roles (259-check sweep, 0 failures)
+- **26 routes**, all rendering for all 7 roles in both languages (448-check sweep, 0 failures)
 - **31 tables**, migrations that run against PGlite and Supabase, RLS policies in `database/rls.sql`
 - **452 seeded requests** across 12 months, 30 employees, 8 departments, 3 offices
-- **Two automated suites** — route sweep and 12 security assertions
+- **Three automated suites** — route sweep, 15 security assertions, translation audit
+- **1,521 message pairs** covering every screen in English and Korean
 - **Nine documents** in `docs/` plus README, TODO and this file
 
 ## Verification
@@ -33,11 +36,12 @@ Checkpoint file. Updated at the end of every phase so work can resume from a col
 ```bash
 npm run check                       # typecheck + lint + production build — all clean
 npm run dev:test                    # terminal 1
-npm run test                        # terminal 2 — 259 route checks + 12 RBAC assertions
+npm run test                        # terminal 2 — 448 route checks (en+ko) + 15 RBAC assertions
+npm run i18n:audit                  # both languages present, placeholders match, no key gaps
 npm run db:inspect                  # data integrity: balances, budgets, SLA, duplicates
 ```
 
-Last run: typecheck 0 errors · lint 0 errors/0 warnings · build clean (26 routes) · routes 259/259 · RBAC 12/12.
+Last run: typecheck 0 errors · lint 0 errors/0 warnings · build clean (26 routes) · routes 448/448 · RBAC 15/15 · i18n audit PASS.
 
 ## Architecture decisions
 
@@ -54,6 +58,12 @@ Full rationale with trade-offs in [`docs/DECISIONS.md`](docs/DECISIONS.md).
 9. Approval steps are materialized at submission; workflow edits never rewrite history.
 10. Radix for overlays only; the rest of the UI is in-repo.
 11. A doubly-gated test-login endpoint, so permissions can be proven rather than claimed.
+12. Locale from a cookie rather than a URL prefix — no `[locale]/` move for 26 routes.
+13. Messages are en/ko **pairs**, so a one-language message is a compile error, not a review catch.
+14. Server actions and domain errors carry message **keys**; the action translates, because only
+    the server can read the locale cookie. Zod schemas are module constants, so they carry keys too.
+15. Enum-derived key families (`type.*`, `approverRole.*`, …) are audited against the enum, because
+    a key built as `t(\`approverRole.${r}\`)` is invisible to static reference checking.
 
 ## Known issues
 

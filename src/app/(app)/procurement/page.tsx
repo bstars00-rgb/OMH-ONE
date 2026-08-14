@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Plus, ShoppingCart } from 'lucide-react';
 import { requireSession } from '@/lib/auth/session';
-import { scopeLabel } from '@/lib/rbac';
+import { scopeLabelKey } from '@/lib/rbac';
 import { getProcurementStats } from '@/server/queries/modules';
 import { listRequests } from '@/server/queries/requests';
 import { parseRequestFilters, toURLSearchParams, type RawSearchParams } from '@/lib/search-params';
@@ -13,13 +13,18 @@ import { StatTile } from '@/components/stat-tile';
 import { BreakdownChart, MonthlySpendChart, RankedList } from '@/components/module-page';
 import { Badge, Card, CardHeader, buttonVariants } from '@/components/ui/primitives';
 import { TableWrap, THead, TH, TBody, TR, TD } from '@/components/ui/table';
-import { formatCompact, formatMoney } from '@/lib/money';
+import { getI18n, getT } from '@/lib/i18n/server';
+import { formatCompactL, formatMoneyL } from '@/lib/i18n/format';
 
-export const metadata: Metadata = { title: 'Purchase Requests' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('procurement.title') };
+}
 
 export default async function ProcurementPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const session = await requireSession();
   const sp = await searchParams;
+  const { t, locale } = await getI18n();
 
   const filters = parseRequestFilters(sp, { mode: 'all', type: ['PURCHASE'], sort: 'newest', pageSize: 20 });
   const [stats, list] = await Promise.all([
@@ -29,93 +34,101 @@ export default async function ProcurementPage({ searchParams }: { searchParams: 
 
   const params = toURLSearchParams(sp);
   const delta = stats.spendPrev > 0 ? Math.round(((stats.spendMonth - stats.spendPrev) / stats.spendPrev) * 100) : null;
+  const scope = scopeLabelKey(session);
+  const money = (v: number) => formatMoneyL(locale, v);
+  const compact = (v: number) => formatCompactL(locale, v);
 
   return (
     <>
       <PageHeader
-        title="Purchase Requests"
-        description={`Procurement activity, vendors and price history across ${scopeLabel(session).toLowerCase()}.`}
+        title={t('procurement.title')}
+        description={t('procurement.subtitle', { scope: t(scope.key, scope.vars) })}
         actions={
           <Link href="/requests/new/PURCHASE" className={buttonVariants({ variant: 'primary', size: 'md' })}>
-            <Plus /> New purchase request
+            <Plus /> {t('procurement.new')}
           </Link>
         }
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
         <StatTile
-          label="Procurement (MTD)"
-          value={formatCompact(stats.spendMonth)}
+          label={t('procurement.mtd')}
+          value={compact(stats.spendMonth)}
           delta={delta === null ? null : { value: delta }}
-          sublabel="vs last month"
+          sublabel={t('label.vsLastMonth')}
           icon="Wallet"
         />
         <StatTile
-          label="Pending approval"
+          label={t('procurement.pending')}
           value={stats.pending}
-          sublabel={formatCompact(stats.pendingValue)}
+          sublabel={compact(stats.pendingValue)}
           icon="Clock"
           href="/approvals?type=PURCHASE"
           tone={stats.pending > 0 ? 'warning' : 'default'}
         />
-        <StatTile label="Approved (12 months)" value={stats.approvedYear} sublabel="Purchase requests" icon="CheckCircle2" />
         <StatTile
-          label="Top vendor"
+          label={t('procurement.approved12')}
+          value={stats.approvedYear}
+          sublabel={t('type.PURCHASE')}
+          icon="CheckCircle2"
+        />
+        <StatTile
+          label={t('procurement.topVendor')}
           value={stats.topVendors[0]?.name ?? '—'}
-          sublabel={stats.topVendors[0] ? formatCompact(stats.topVendors[0].value) : 'No data'}
+          sublabel={stats.topVendors[0] ? compact(stats.topVendors[0].value) : t('label.noData')}
           icon="Store"
         />
         <StatTile
-          label="Top category"
-          value={stats.byCategory[0]?.name ?? '—'}
-          sublabel={stats.byCategory[0] ? formatCompact(stats.byCategory[0].value) : 'No data'}
+          label={t('procurement.topCategory')}
+          value={stats.byCategory[0] ? t(`purchaseCategory.${stats.byCategory[0].name}`) : '—'}
+          sublabel={stats.byCategory[0] ? compact(stats.byCategory[0].value) : t('label.noData')}
           icon="Tags"
         />
       </div>
 
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
         <MonthlySpendChart
-          title="Procurement by month"
-          subtitle="Approved purchase requests"
+          title={t('procurement.byMonth')}
+          subtitle={t('procurement.byMonthSub')}
           monthly={stats.monthly}
           current={stats.spendMonth}
           previous={stats.spendPrev}
         />
-        <BreakdownChart title="Spend by category" subtitle="Approved, last 12 months" data={stats.byCategory} />
+        <BreakdownChart
+          title={t('procurement.byCategory')}
+          subtitle={t('procurement.byCategorySub')}
+          data={stats.byCategory}
+          nameKey="purchaseCategory"
+        />
 
         <RankedList
-          title="Top vendors"
-          description="By approved spend over the last 12 months"
-          emptyMessage="No approved purchases with a vendor recorded."
+          title={t('procurement.topVendors')}
+          description={t('procurement.topVendorsSub')}
+          emptyMessage={t('procurement.topVendorsEmpty')}
           items={stats.topVendors.map((v) => ({
             key: v.id,
             primary: v.name,
-            secondary: `${v.orders} order${v.orders === 1 ? '' : 's'}`,
-            value: formatMoney(v.value),
-            badge: v.isPreferred ? <Badge tone="emerald">Preferred</Badge> : undefined,
+            secondary: t('procurement.orders', { count: v.orders }),
+            value: money(v.value),
+            badge: v.isPreferred ? <Badge tone="emerald">{t('procurement.preferred')}</Badge> : undefined,
           }))}
         />
 
         {/* Price drift is the single most useful procurement signal — same item, different price */}
         <Card>
-          <CardHeader
-            title="Price history"
-            description="Items bought more than once, ordered by the spread between cheapest and dearest"
-          />
+          <CardHeader title={t('procurement.priceHistory')} description={t('procurement.priceHistorySub')} />
           {stats.priceHistory.length === 0 ? (
-            <p className="px-4 py-8 text-center text-xs text-text-subtle">
-              No item has been purchased twice yet, so there is nothing to compare.
-            </p>
+            <p className="px-4 py-8 text-center text-xs text-text-subtle">{t('procurement.priceHistoryEmpty')}</p>
           ) : (
             <TableWrap>
               <THead>
                 <TR>
-                  <TH>Item</TH>
-                  <TH align="right">Times</TH>
-                  <TH align="right">Lowest</TH>
-                  <TH align="right">Average</TH>
-                  <TH align="right">Highest</TH>
-                  <TH align="right">Spread</TH>
+                  <TH>{t('content.item')}</TH>
+                  <TH align="right">{t('procurement.times')}</TH>
+                  <TH align="right">{t('procurement.lowest')}</TH>
+                  <TH align="right">{t('procurement.average')}</TH>
+                  <TH align="right">{t('procurement.highest')}</TH>
+                  <TH align="right">{t('procurement.spread')}</TH>
                 </TR>
               </THead>
               <TBody>
@@ -125,9 +138,9 @@ export default async function ProcurementPage({ searchParams }: { searchParams: 
                     <TR key={p.name}>
                       <TD className="max-w-56 truncate font-medium">{p.name}</TD>
                       <TD numeric>{p.purchases}</TD>
-                      <TD numeric>{formatMoney(p.minPrice)}</TD>
-                      <TD numeric>{formatMoney(p.avgPrice)}</TD>
-                      <TD numeric>{formatMoney(p.maxPrice)}</TD>
+                      <TD numeric>{money(p.minPrice)}</TD>
+                      <TD numeric>{money(p.avgPrice)}</TD>
+                      <TD numeric>{money(p.maxPrice)}</TD>
                       <TD numeric>
                         <span className={spread > 20 ? 'font-semibold text-rose-600 dark:text-rose-400' : 'text-text-muted'}>
                           +{spread}%
@@ -142,7 +155,7 @@ export default async function ProcurementPage({ searchParams }: { searchParams: 
         </Card>
       </div>
 
-      <h2 className="mb-3 text-sm font-semibold text-text">All purchase requests</h2>
+      <h2 className="mb-3 text-sm font-semibold text-text">{t('procurement.allRequests')}</h2>
       <FilterBar showType={false} />
       <Card className="overflow-hidden">
         <RequestTable
@@ -150,14 +163,14 @@ export default async function ProcurementPage({ searchParams }: { searchParams: 
           total={list.total}
           page={list.page}
           pageSize={list.pageSize}
-          baseParams={params}
+          baseParams={params.toString()}
           currentSort={filters.sort}
           columns={['number', 'title', 'requester', 'department', 'amount', 'status', 'submitted', 'approver', 'risk']}
-          emptyTitle="No purchase requests match these filters"
-          emptyDescription="Try clearing a filter, or raise a new purchase request."
+          emptyTitle={t('procurement.emptyTitle')}
+          emptyDescription={t('procurement.emptyBody')}
           emptyAction={
             <Link href="/requests/new/PURCHASE" className={buttonVariants({ variant: 'primary', size: 'sm' })}>
-              <ShoppingCart /> New purchase request
+              <ShoppingCart /> {t('procurement.new')}
             </Link>
           }
         />

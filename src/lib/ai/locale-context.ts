@@ -1,5 +1,5 @@
 import 'server-only';
-import { createTranslator } from '@/lib/i18n';
+import { createTranslator, translateOr } from '@/lib/i18n';
 import { formatDateL, formatMoneyL, formatRangeL } from '@/lib/i18n/format';
 import type { Locale } from '@/lib/i18n/types';
 import type { AiLocaleContext } from './types';
@@ -15,6 +15,7 @@ export function aiLocale(locale: Locale): AiLocaleContext {
   return {
     locale,
     t,
+    tOr: (key, fallback, vars) => translateOr(locale, key, fallback, vars),
     money: (amount, currency = 'USD') => formatMoneyL(locale, amount, currency),
     date: (value) => formatDateL(locale, value),
     range: (start, end) => formatRangeL(locale, start, end),

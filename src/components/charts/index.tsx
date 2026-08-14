@@ -18,7 +18,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { formatCompact, formatMoney } from '@/lib/money';
+import { useI18n, useT } from '@/lib/i18n/client';
+import { formatCompactL, formatMoneyL } from '@/lib/i18n/format';
 import { cn } from '@/lib/utils';
 
 /**
@@ -57,6 +58,7 @@ function ChartTooltip({
   label?: string;
   money?: boolean;
 }) {
+  const { locale } = useI18n();
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-md border border-border-subtle bg-surface-raised px-2.5 py-1.5 text-xs shadow-popover">
@@ -65,7 +67,9 @@ function ChartTooltip({
         <p key={i} className="flex items-center gap-1.5 text-text-muted">
           <span className="size-2 rounded-full" style={{ background: p.color ?? p.fill }} aria-hidden="true" />
           <span>{p.name}:</span>
-          <span className="font-medium text-text tabular">{money ? formatMoney(p.value) : p.value.toLocaleString()}</span>
+          <span className="font-medium text-text tabular">
+            {money ? formatMoneyL(locale, p.value) : p.value.toLocaleString(locale)}
+          </span>
         </p>
       ))}
     </div>
@@ -80,7 +84,7 @@ export function ChartCard({
   delta,
   children,
   isEmpty,
-  emptyMessage = 'No data for this period.',
+  emptyMessage,
   action,
   className,
   height = 220,
@@ -96,6 +100,7 @@ export function ChartCard({
   className?: string;
   height?: number;
 }) {
+  const t = useT();
   return (
     <section className={cn('rounded-[var(--radius-card)] border border-border-subtle bg-surface', className)}>
       <header className="flex items-start justify-between gap-4 px-4 pt-3.5 pb-2">
@@ -124,7 +129,7 @@ export function ChartCard({
       <div className="px-2 pb-3" style={{ height }}>
         {isEmpty ? (
           <div className="flex h-full items-center justify-center px-4">
-            <p className="text-center text-xs text-text-subtle">{emptyMessage}</p>
+            <p className="text-center text-xs text-text-subtle">{emptyMessage ?? t('chart.noData')}</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -166,6 +171,7 @@ export function TrendArea({
 }: {
   data: { label: string; submitted: number; approved: number; rejected: number }[];
 }) {
+  const t = useT();
   return (
     <AreaChart data={data} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
       <defs>
@@ -179,21 +185,36 @@ export function TrendArea({
       <YAxis {...axisProps} width={40} allowDecimals={false} />
       <Tooltip content={<ChartTooltip />} />
       <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 11 }} />
-      <Area type="monotone" dataKey="submitted" name="Submitted" stroke={SERIES[0]} fill="url(#gradSubmitted)" strokeWidth={2} />
-      <Line type="monotone" dataKey="approved" name="Approved" stroke={SERIES[2]} strokeWidth={2} dot={false} />
-      <Line type="monotone" dataKey="rejected" name="Rejected" stroke={SERIES[4]} strokeWidth={2} dot={false} />
+      <Area
+        type="monotone"
+        dataKey="submitted"
+        name={t('status.SUBMITTED')}
+        stroke={SERIES[0]}
+        fill="url(#gradSubmitted)"
+        strokeWidth={2}
+      />
+      <Line type="monotone" dataKey="approved" name={t('status.APPROVED')} stroke={SERIES[2]} strokeWidth={2} dot={false} />
+      <Line type="monotone" dataKey="rejected" name={t('status.REJECTED')} stroke={SERIES[4]} strokeWidth={2} dot={false} />
     </AreaChart>
   );
 }
 
 export function SpendLine({ data }: { data: { label: string; spend: number }[] }) {
+  const { t, locale } = useI18n();
   return (
     <LineChart data={data} margin={{ top: 4, right: 8, left: -6, bottom: 0 }}>
       <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
       <XAxis dataKey="label" {...axisProps} />
-      <YAxis {...axisProps} width={52} tickFormatter={(v) => formatCompact(v)} />
+      <YAxis {...axisProps} width={52} tickFormatter={(v) => formatCompactL(locale, v)} />
       <Tooltip content={<ChartTooltip money />} />
-      <Line type="monotone" dataKey="spend" name="Approved spend" stroke={SERIES[0]} strokeWidth={2.5} dot={{ r: 3 }} />
+      <Line
+        type="monotone"
+        dataKey="spend"
+        name={t('chart.approvedSpend')}
+        stroke={SERIES[0]}
+        strokeWidth={2.5}
+        dot={{ r: 3 }}
+      />
     </LineChart>
   );
 }
@@ -207,14 +228,17 @@ export function CategoryBars({
   money?: boolean;
   horizontal?: boolean;
 }) {
+  const { t, locale } = useI18n();
+  const seriesName = t(money ? 'chart.spend' : 'chart.count');
+
   if (horizontal) {
     return (
       <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" horizontal={false} />
-        <XAxis type="number" {...axisProps} tickFormatter={(v) => (money ? formatCompact(v) : String(v))} />
+        <XAxis type="number" {...axisProps} tickFormatter={(v) => (money ? formatCompactL(locale, v) : String(v))} />
         <YAxis type="category" dataKey="name" {...axisProps} width={68} />
         <Tooltip content={<ChartTooltip money={money} />} cursor={{ fill: 'var(--surface-hover)' }} />
-        <Bar dataKey="value" name={money ? 'Spend' : 'Count'} radius={[0, 4, 4, 0]} maxBarSize={22}>
+        <Bar dataKey="value" name={seriesName} radius={[0, 4, 4, 0]} maxBarSize={22}>
           {data.map((_, i) => (
             <Cell key={i} fill={SERIES[i % SERIES.length]} />
           ))}
@@ -226,9 +250,9 @@ export function CategoryBars({
     <BarChart data={data} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
       <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
       <XAxis dataKey="name" {...axisProps} />
-      <YAxis {...axisProps} width={52} tickFormatter={(v) => (money ? formatCompact(v) : String(v))} />
+      <YAxis {...axisProps} width={52} tickFormatter={(v) => (money ? formatCompactL(locale, v) : String(v))} />
       <Tooltip content={<ChartTooltip money={money} />} cursor={{ fill: 'var(--surface-hover)' }} />
-      <Bar dataKey="value" name={money ? 'Spend' : 'Count'} radius={[4, 4, 0, 0]} maxBarSize={40}>
+      <Bar dataKey="value" name={seriesName} radius={[4, 4, 0, 0]} maxBarSize={40}>
         {data.map((_, i) => (
           <Cell key={i} fill={SERIES[i % SERIES.length]} />
         ))}
@@ -238,6 +262,7 @@ export function CategoryBars({
 }
 
 export function BottleneckBars({ data }: { data: { role: string; avgHours: number }[] }) {
+  const t = useT();
   return (
     <BarChart data={data} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 0 }}>
       <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" horizontal={false} />
@@ -249,14 +274,12 @@ export function BottleneckBars({ data }: { data: { role: string; avgHours: numbe
           active && payload?.length ? (
             <div className="rounded-md border border-border-subtle bg-surface-raised px-2.5 py-1.5 text-xs shadow-popover">
               <p className="font-medium text-text">{label}</p>
-              <p className="text-text-muted">
-                Average <span className="font-medium text-text tabular">{payload[0].value}h</span> per decision
-              </p>
+              <p className="text-text-muted">{t('chart.avgPerDecision', { hours: String(payload[0].value) })}</p>
             </div>
           ) : null
         }
       />
-      <Bar dataKey="avgHours" name="Average hours" radius={[0, 4, 4, 0]} maxBarSize={22}>
+      <Bar dataKey="avgHours" name={t('chart.avgHours')} radius={[0, 4, 4, 0]} maxBarSize={22}>
         {data.map((d, i) => (
           <Cell key={i} fill={d.avgHours > 30 ? '#f43f5e' : d.avgHours > 20 ? '#f59e0b' : '#10b981'} />
         ))}

@@ -5,9 +5,11 @@ import { Card, CardHeader } from '@/components/ui/primitives';
 import { TableWrap, THead, TH, TBody } from '@/components/ui/table';
 import { SettingRow, type SettingDto } from './settings-form';
 import type { AdminResult } from '@/server/actions/admin';
+import { useT } from '@/lib/i18n/client';
 import { cn } from '@/lib/utils';
 
 export function SettingsPanel({ settings }: { settings: SettingDto[] }) {
+  const t = useT();
   const [result, setResult] = React.useState<AdminResult | null>(null);
 
   return (
@@ -28,13 +30,13 @@ export function SettingsPanel({ settings }: { settings: SettingDto[] }) {
       )}
 
       <Card className="overflow-hidden">
-        <CardHeader title="Application settings" description="Stored in the database and read live by the app." />
+        <CardHeader title={t('set.appSettings')} description={t('set.appSettingsSub')} />
         <TableWrap>
           <THead>
-            <TH>Key</TH>
-            <TH>Description</TH>
-            <TH>Value</TH>
-            <TH align="right">Action</TH>
+            <TH>{t('set.key')}</TH>
+            <TH>{t('label.description')}</TH>
+            <TH>{t('set.value')}</TH>
+            <TH align="right">{t('set.action')}</TH>
           </THead>
           <TBody>
             {settings.map((s) => (

@@ -2,16 +2,20 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { asc, eq, sql } from 'drizzle-orm';
 import { requireSession } from '@/lib/auth/session';
-import { can, canViewEmployee, scopeLabel } from '@/lib/rbac';
+import { can, canViewEmployee, scopeLabelKey } from '@/lib/rbac';
 import { ready } from '@/lib/db/bootstrap';
 import { departments, employees, offices } from '@/lib/db/schema';
 import { PageHeader } from '@/components/page-header';
 import { ForbiddenPage, NoResults } from '@/components/ui/states';
 import { Avatar, Badge, Card } from '@/components/ui/primitives';
 import { TableWrap, THead, TH, TBody, TR, TD } from '@/components/ui/table';
-import { formatDate } from '@/lib/dates';
+import { getI18n, getT } from '@/lib/i18n/server';
+import { formatDateL } from '@/lib/i18n/format';
 
-export const metadata: Metadata = { title: 'Employees' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('people.title') };
+}
 
 export default async function PeoplePage({
   searchParams,
@@ -19,7 +23,8 @@ export default async function PeoplePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await requireSession();
-  if (!can(session, 'employee.viewAll')) return <ForbiddenPage what="the employee directory" />;
+  const { t, locale } = await getI18n();
+  if (!can(session, 'employee.viewAll')) return <ForbiddenPage what={t('people.directory')} />;
 
   const sp = await searchParams;
   const q = (Array.isArray(sp.q) ? sp.q[0] : sp.q)?.trim().toLowerCase() ?? '';
@@ -55,27 +60,28 @@ export default async function PeoplePage({
     .filter((r) => (q ? `${r.name} ${r.email} ${r.position ?? ''}`.toLowerCase().includes(q) : true));
 
   const deptCodes = [...new Set(rows.filter((r) => canViewEmployee(session, r)).map((r) => r.departmentCode).filter(Boolean))] as string[];
+  const scope = scopeLabelKey(session);
 
   return (
     <>
       <PageHeader
-        title="Employees"
-        description={`${visible.length} people · ${scopeLabel(session).toLowerCase()}.`}
+        title={t('people.title')}
+        description={t('people.subtitle', { count: visible.length, scope: t(scope.key, scope.vars) })}
       />
 
       <form method="get" className="mb-3 flex flex-wrap items-center gap-2">
         <label className="sr-only" htmlFor="q">
-          Search employees
+          {t('people.searchAria')}
         </label>
         <input
           id="q"
           name="q"
           defaultValue={q}
-          placeholder="Search by name, email or position…"
+          placeholder={t('people.searchPlaceholder')}
           className="h-8 max-w-xs flex-1 rounded-[var(--radius-control)] border border-border-strong bg-surface px-3 text-sm text-text placeholder:text-text-subtle"
         />
         <label className="sr-only" htmlFor="dept">
-          Filter by department
+          {t('people.filterDept')}
         </label>
         <select
           id="dept"
@@ -83,7 +89,7 @@ export default async function PeoplePage({
           defaultValue={deptFilter ?? ''}
           className="h-8 rounded-[var(--radius-control)] border border-border-strong bg-surface px-2 text-sm text-text"
         >
-          <option value="">All departments</option>
+          <option value="">{t('people.allDepartments')}</option>
           {deptCodes.map((d) => (
             <option key={d} value={d}>
               {d}
@@ -94,29 +100,35 @@ export default async function PeoplePage({
           type="submit"
           className="h-8 rounded-[var(--radius-control)] bg-accent px-3 text-xs font-medium text-accent-fg"
         >
-          Search
+          {t('action.search')}
         </button>
         {(q || deptFilter) && (
           <Link href="/people" className="text-xs text-text-muted hover:text-text hover:underline">
-            Clear
+            {t('action.clear')}
           </Link>
         )}
       </form>
 
       <Card className="overflow-hidden">
         {visible.length === 0 ? (
-          <NoResults onReset={<Link href="/people" className="text-xs text-accent hover:underline">Clear filters</Link>} />
+          <NoResults
+            onReset={
+              <Link href="/people" className="text-xs text-accent hover:underline">
+                {t('action.clearFilters')}
+              </Link>
+            }
+          />
         ) : (
           <TableWrap>
             <THead>
               <TR>
-                <TH>Employee</TH>
-                <TH>Position</TH>
-                <TH>Dept</TH>
-                <TH>Office</TH>
-                <TH>Manager</TH>
-                <TH>Joined</TH>
-                <TH align="right">Open requests</TH>
+                <TH>{t('label.employee')}</TH>
+                <TH>{t('label.position')}</TH>
+                <TH>{t('label.departmentShort')}</TH>
+                <TH>{t('label.office')}</TH>
+                <TH>{t('label.manager')}</TH>
+                <TH>{t('people.joined')}</TH>
+                <TH align="right">{t('people.openRequests')}</TH>
               </TR>
             </THead>
             <TBody>
@@ -135,7 +147,7 @@ export default async function PeoplePage({
                   <TD>{e.departmentCode ? <Badge tone="slate">{e.departmentCode}</Badge> : '—'}</TD>
                   <TD className="text-text-muted">{e.officeCode ?? '—'}</TD>
                   <TD className="text-text-muted">{e.managerName ?? '—'}</TD>
-                  <TD className="whitespace-nowrap text-text-muted tabular">{formatDate(String(e.joinDate))}</TD>
+                  <TD className="whitespace-nowrap text-text-muted tabular">{formatDateL(locale, String(e.joinDate))}</TD>
                   <TD numeric>{Number(e.openRequests) > 0 ? e.openRequests : '—'}</TD>
                 </TR>
               ))}

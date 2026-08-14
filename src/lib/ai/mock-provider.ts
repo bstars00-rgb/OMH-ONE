@@ -207,9 +207,10 @@ function evaluatePolicy(
   ctx: RequestContext,
   l: AiLocaleContext,
 ): AiCheck | null {
-  const { t, money } = l;
+  const { t, tOr, money } = l;
   const threshold = policy.threshold;
-  const label = policy.name;
+  // Policy rows are seeded in English; the dictionary supplies the display name.
+  const label = tOr(`policyName.${policy.code}`, policy.name);
 
   const fail = (detail: string): AiCheck => ({
     label,
@@ -766,6 +767,12 @@ const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 
  * employee and city lists passed in, and picks up flight codes and amounts.
  * Whatever it cannot determine is reported in `missing` rather than invented.
  */
+/**
+ * Deterministic field extraction.
+ *
+ * Emits message keys in `missing` and `notes` rather than prose — the draft is
+ * data, and the action that returns it to the browser is what knows the locale.
+ */
 export function extractDraft(prompt: string, type: RequestType, ctx: FormGenerationContext): FormDraft {
   const text = prompt.trim();
   const lower = text.toLowerCase();
@@ -785,7 +792,7 @@ export function extractDraft(prompt: string, type: RequestType, ctx: FormGenerat
     notes.push('draft.note.singleDate');
     confidence += 8;
   } else {
-    missing.push('Dates');
+    missing.push('draft.missing.dates');
   }
 
   const mentioned = ctx.employeeNames.filter((e) => {
@@ -802,7 +809,7 @@ export function extractDraft(prompt: string, type: RequestType, ctx: FormGenerat
       fields.country = dest.country;
       confidence += 15;
     } else {
-      missing.push('Destination');
+      missing.push('draft.missing.destination');
     }
 
     const flights = text.match(/\b([A-Z]{2}\s?\d{2,4})\b/g);
@@ -843,7 +850,7 @@ export function extractDraft(prompt: string, type: RequestType, ctx: FormGenerat
       fields.amount = amount;
       confidence += 12;
     } else if (type !== 'GENERAL') {
-      missing.push('Amount');
+      missing.push('draft.missing.amount');
     }
 
     const qty = lower.match(/\b(\d{1,3})\s*(?:x|×|units?|pcs?|pieces?|개|대|장)\b/);
@@ -857,7 +864,7 @@ export function extractDraft(prompt: string, type: RequestType, ctx: FormGenerat
       fields.vendorId = vendor.id;
       confidence += 8;
     } else if (type === 'PURCHASE') {
-      missing.push('Vendor');
+      missing.push('draft.missing.vendor');
     }
 
     fields.description = text;

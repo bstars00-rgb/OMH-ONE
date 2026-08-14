@@ -8,17 +8,26 @@ import { assertCan, PermissionError } from '@/lib/rbac';
 import { ready } from '@/lib/db/bootstrap';
 import { approvalWorkflowSteps, approvalWorkflows, policies, systemSettings, userRoles, users } from '@/lib/db/schema';
 import { recordAudit } from '@/server/audit';
+import { getT } from '@/lib/i18n/server';
+import type { Vars } from '@/lib/i18n/types';
 import { APPROVER_ROLES, ROLES } from '@/types/domain';
 
 export interface AdminResult {
   ok: boolean;
+  /** Already translated — the action can read the locale cookie, the client cannot. */
   message: string;
 }
 
-function fail(err: unknown): AdminResult {
-  if (err instanceof PermissionError) return { ok: false, message: err.message };
+/** Resolves a message key in the caller's language. */
+async function say(ok: boolean, key: string, vars?: Vars): Promise<AdminResult> {
+  const t = await getT();
+  return { ok, message: t(key, vars) };
+}
+
+async function fail(err: unknown): Promise<AdminResult> {
+  if (err instanceof PermissionError) return say(false, err.message, err.vars);
   console.error('[admin] action failed', err);
-  return { ok: false, message: 'The change could not be saved. Please try again.' };
+  return say(false, 'set.saveFailed');
 }
 
 /* ------------------------------------------------------------------ */
@@ -28,6 +37,8 @@ function fail(err: unknown): AdminResult {
 const stepSchema = z.object({
   name: z.string().trim().min(2).max(80),
   approverRole: z.enum(APPROVER_ROLES),
+  /** When set, this exact person approves the step and the role is only a label. */
+  approverEmployeeId: z.string().uuid().nullable().optional(),
   slaHours: z.coerce.number().int().min(1).max(720),
   conditionType: z.enum(['ALWAYS', 'AMOUNT_GT', 'DAYS_GT', 'INTERNATIONAL', 'QUOTATIONS_LT']),
   conditionValue: z.coerce.number().min(0).max(10_000_000).nullable().optional(),
@@ -36,7 +47,7 @@ const stepSchema = z.object({
 const workflowSchema = z.object({
   workflowId: z.string().uuid(),
   description: z.string().trim().max(300).optional(),
-  steps: z.array(stepSchema).min(1, 'A workflow needs at least one step.').max(8),
+  steps: z.array(stepSchema).min(1, 'wf.needStep').max(8),
 });
 
 /**
@@ -53,13 +64,13 @@ export async function saveWorkflowAction(raw: unknown): Promise<AdminResult> {
 
     const parsed = workflowSchema.safeParse(raw);
     if (!parsed.success) {
-      return { ok: false, message: parsed.error.issues[0]?.message ?? 'Check the workflow steps.' };
+      return say(false, parsed.error.issues[0]?.message ?? 'wf.checkSteps');
     }
     const { workflowId, description, steps } = parsed.data;
 
     const db = await ready();
     const [existing] = await db.select().from(approvalWorkflows).where(eq(approvalWorkflows.id, workflowId)).limit(1);
-    if (!existing) return { ok: false, message: 'Workflow not found.' };
+    if (!existing) return say(false, 'wf.notFound');
 
     await db.transaction(async (tx) => {
       await tx.delete(approvalWorkflowSteps).where(eq(approvalWorkflowSteps.workflowId, workflowId));
@@ -69,6 +80,7 @@ export async function saveWorkflowAction(raw: unknown): Promise<AdminResult> {
           stepOrder: i + 1,
           name: s.name,
           approverRole: s.approverRole,
+          approverEmployeeId: s.approverEmployeeId ?? null,
           slaHours: s.slaHours,
           conditionType: s.conditionType,
           conditionValue:
@@ -91,13 +103,15 @@ export async function saveWorkflowAction(raw: unknown): Promise<AdminResult> {
       actorId: session.employeeId,
       actorEmail: session.email,
       summary: `${existing.name} updated to ${steps.length} step(s)`,
-      metadata: { steps: steps.map((s) => `${s.name}/${s.approverRole}/${s.conditionType}`) },
+      metadata: {
+        steps: steps.map((s) => `${s.name}/${s.approverEmployeeId ?? s.approverRole}/${s.conditionType}`),
+      },
     });
 
     revalidatePath('/admin/workflows');
-    return { ok: true, message: `${existing.name} saved. Applies to requests submitted from now on.` };
+    return say(true, 'wf.saved', { name: existing.name });
   } catch (err) {
-    return fail(err);
+    return await fail(err);
   }
 }
 
@@ -119,11 +133,11 @@ export async function savePolicyAction(raw: unknown): Promise<AdminResult> {
     assertCan(session, 'admin.policy');
 
     const parsed = policySchema.safeParse(raw);
-    if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? 'Check the policy values.' };
+    if (!parsed.success) return say(false, parsed.error.issues[0]?.message ?? 'pol.checkValues');
 
     const db = await ready();
     const [existing] = await db.select().from(policies).where(eq(policies.id, parsed.data.policyId)).limit(1);
-    if (!existing) return { ok: false, message: 'Policy not found.' };
+    if (!existing) return say(false, 'pol.notFound');
 
     await db
       .update(policies)
@@ -149,9 +163,9 @@ export async function savePolicyAction(raw: unknown): Promise<AdminResult> {
     });
 
     revalidatePath('/admin/policies');
-    return { ok: true, message: `${existing.name} saved.` };
+    return say(true, 'pol.saved', { name: existing.name });
   } catch (err) {
-    return fail(err);
+    return await fail(err);
   }
 }
 
@@ -171,12 +185,12 @@ export async function saveUserRolesAction(raw: unknown): Promise<AdminResult> {
     assertCan(session, 'admin.users');
 
     const parsed = roleSchema.safeParse(raw);
-    if (!parsed.success) return { ok: false, message: 'Select at least one role.' };
+    if (!parsed.success) return say(false, 'users.needRole');
     const { userId, primaryRole, roles } = parsed.data;
 
     const db = await ready();
     const [target] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-    if (!target) return { ok: false, message: 'User not found.' };
+    if (!target) return say(false, 'users.notFound');
 
     // Guard against an admin removing the last administrator and locking everyone out.
     if (!roles.includes('SUPER_ADMIN') && !roles.includes('ADMIN')) {
@@ -185,7 +199,7 @@ export async function saveUserRolesAction(raw: unknown): Promise<AdminResult> {
         .from(userRoles)
         .where(and(sql`${userRoles.role} in ('SUPER_ADMIN','ADMIN')`, sql`${userRoles.userId} <> ${userId}`));
       if (Number(n) === 0) {
-        return { ok: false, message: 'This is the last account with administrator access — its admin role cannot be removed.' };
+        return say(false, 'users.lastAdmin');
       }
     }
 
@@ -208,9 +222,9 @@ export async function saveUserRolesAction(raw: unknown): Promise<AdminResult> {
     });
 
     revalidatePath('/admin/users');
-    return { ok: true, message: `Roles updated for ${target.email}. Takes effect on their next page load.` };
+    return say(true, 'users.rolesUpdated', { email: target.email });
   } catch (err) {
-    return fail(err);
+    return await fail(err);
   }
 }
 
@@ -221,9 +235,9 @@ export async function setUserActiveAction(userId: string, isActive: boolean): Pr
 
     const db = await ready();
     const [target] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-    if (!target) return { ok: false, message: 'User not found.' };
+    if (!target) return say(false, 'users.notFound');
     if (target.id === session.userId && !isActive) {
-      return { ok: false, message: 'You cannot deactivate your own account.' };
+      return say(false, 'users.cannotDisableSelf');
     }
 
     await db.update(users).set({ isActive }).where(eq(users.id, userId));
@@ -237,9 +251,9 @@ export async function setUserActiveAction(userId: string, isActive: boolean): Pr
     });
 
     revalidatePath('/admin/users');
-    return { ok: true, message: `${target.email} ${isActive ? 'can now sign in' : 'can no longer sign in'}.` };
+    return say(true, isActive ? 'users.activated' : 'users.deactivated', { email: target.email });
   } catch (err) {
-    return fail(err);
+    return await fail(err);
   }
 }
 
@@ -254,13 +268,13 @@ export async function saveSettingAction(key: string, value: string): Promise<Adm
 
     const db = await ready();
     const [existing] = await db.select().from(systemSettings).where(eq(systemSettings.key, key)).limit(1);
-    if (!existing) return { ok: false, message: 'Unknown setting.' };
+    if (!existing) return say(false, 'set.unknownSetting');
 
     // Preserve the stored JSON type: a number stays a number, a boolean a boolean.
     let parsed: unknown = value;
     if (typeof existing.value === 'number') {
       const n = Number(value);
-      if (!Number.isFinite(n)) return { ok: false, message: 'This setting expects a number.' };
+      if (!Number.isFinite(n)) return say(false, 'set.expectsNumber');
       parsed = n;
     } else if (typeof existing.value === 'boolean') {
       parsed = value === 'true';
@@ -278,8 +292,8 @@ export async function saveSettingAction(key: string, value: string): Promise<Adm
     });
 
     revalidatePath('/admin/settings');
-    return { ok: true, message: `${key} saved.` };
+    return say(true, 'set.saved', { key });
   } catch (err) {
-    return fail(err);
+    return await fail(err);
   }
 }

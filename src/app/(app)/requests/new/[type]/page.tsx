@@ -18,43 +18,40 @@ import {
   getPurchaseFormData,
   getTripFormData,
 } from '@/server/queries/form-context';
-import { REQUEST_TYPES, REQUEST_TYPE_META, type RequestType } from '@/types/domain';
+import { getI18n, getT } from '@/lib/i18n/server';
+import { REQUEST_TYPES, type RequestType } from '@/types/domain';
 
 export async function generateMetadata({ params }: { params: Promise<{ type: string }> }): Promise<Metadata> {
   const { type } = await params;
-  const meta = REQUEST_TYPE_META[type as RequestType];
-  return { title: meta ? `New ${meta.label}` : 'New request' };
+  const t = await getT();
+  const upper = type.toUpperCase() as RequestType;
+  return {
+    title: REQUEST_TYPES.includes(upper) ? t('new.pageTitle', { type: t(`type.${upper}`) }) : t('new.breadcrumb'),
+  };
 }
-
-const DESCRIPTIONS: Record<RequestType, string> = {
-  LEAVE: 'Working days, public holidays and your remaining balance are calculated as you type.',
-  BUSINESS_TRIP: 'Enter the trip once. Routing, policy checks and the comparison against previous trips happen automatically.',
-  PURCHASE: 'Approvers see this priced against previous purchases of the same item and your department budget.',
-  EXPENSE: 'Attach receipts and the lines fill themselves in. Every line is checked against other claims for duplicates.',
-  HR: 'Goes to your line manager, then HR.',
-  GENERAL: 'For anything that needs a decision but does not fit the other types.',
-};
 
 export default async function NewTypedRequestPage({ params }: { params: Promise<{ type: string }> }) {
   const session = await requireSession();
   const { type: raw } = await params;
   const type = raw.toUpperCase() as RequestType;
 
-  if (!REQUEST_TYPES.includes(type)) notFound();
-  if (!can(session, 'request.create')) return <ForbiddenPage what="creating requests" />;
+  const { t } = await getI18n();
 
-  const meta = REQUEST_TYPE_META[type];
+  if (!REQUEST_TYPES.includes(type)) notFound();
+  if (!can(session, 'request.create')) return <ForbiddenPage what={t('new.creatingRequests')} />;
+
+  const typeLabel = t(`type.${type}`);
 
   return (
     <>
       <PageHeader
         breadcrumbs={[
-          { label: 'My Requests', href: '/requests' },
-          { label: 'New request', href: '/requests/new' },
-          { label: meta.label },
+          { label: t('nav.requests'), href: '/requests' },
+          { label: t('new.breadcrumb'), href: '/requests/new' },
+          { label: typeLabel },
         ]}
-        title={`New ${meta.label.toLowerCase()}`}
-        description={DESCRIPTIONS[type]}
+        title={t('new.pageTitle', { type: typeLabel })}
+        description={t(`new.desc.${type}`)}
       />
       <FormFor type={type} session={session} />
     </>

@@ -13,6 +13,7 @@ import {
   submitRequestAction,
   markInReviewAction,
 } from '@/server/actions/requests';
+import { useT } from '@/lib/i18n/client';
 import { cn } from '@/lib/utils';
 
 type Kind = 'approve' | 'reject' | 'return' | 'cancel';
@@ -43,6 +44,7 @@ export function DecisionBar({
   isCurrentApprover: boolean;
 }) {
   const router = useRouter();
+  const t = useT();
   const [pending, setPending] = React.useState<Kind | 'submit' | null>(null);
   const [result, setResult] = React.useState<{ ok: boolean; message: string } | null>(null);
 
@@ -82,7 +84,7 @@ export function DecisionBar({
         {canSubmit && (
           <Button variant="primary" onClick={() => run('submit')} disabled={pending !== null}>
             {pending === 'submit' ? <Loader2 className="animate-spin" /> : <Send />}
-            Submit for approval
+            {t('action.submit')}
           </Button>
         )}
 
@@ -90,55 +92,52 @@ export function DecisionBar({
           <>
             {hasBlockingIssue ? (
               <ReasonDialog
-                kind="approve"
-                title="Approve despite a blocking issue?"
-                description="The AI review found an issue that normally blocks approval. Record why you are approving anyway — this is stored in the audit log."
-                confirmLabel="Approve anyway"
+                title={t('decision.approveOverrideTitle')}
+                description={t('decision.approveOverrideBody')}
+                confirmLabel={t('action.approveAnyway')}
                 confirmVariant="warning"
                 required
                 pending={pending === 'approve'}
                 onConfirm={(c) => run('approve', c)}
                 trigger={
                   <Button variant="success" disabled={pending !== null}>
-                    <AlertTriangle /> Approve with override
+                    <AlertTriangle /> {t('action.approveOverride')}
                   </Button>
                 }
               />
             ) : (
               <Button variant="success" onClick={() => run('approve')} disabled={pending !== null}>
                 {pending === 'approve' ? <Loader2 className="animate-spin" /> : <Check />}
-                Approve
+                {t('action.approve')}
               </Button>
             )}
 
             <ReasonDialog
-              kind="return"
-              title="Return for correction"
-              description="The requester can edit and resubmit. Tell them what needs to change."
-              confirmLabel="Return request"
+              title={t('decision.returnTitle')}
+              description={t('decision.returnBody')}
+              confirmLabel={t('action.returnRequest')}
               confirmVariant="warning"
               required
               pending={pending === 'return'}
               onConfirm={(c) => run('return', c)}
               trigger={
                 <Button variant="secondary" disabled={pending !== null}>
-                  <Undo2 /> Return
+                  <Undo2 /> {t('action.return')}
                 </Button>
               }
             />
 
             <ReasonDialog
-              kind="reject"
-              title="Reject this request"
-              description="This closes the request permanently. The requester is notified with your reason."
-              confirmLabel="Reject request"
+              title={t('decision.rejectTitle')}
+              description={t('decision.rejectBody')}
+              confirmLabel={t('action.rejectRequest')}
               confirmVariant="danger"
               required
               pending={pending === 'reject'}
               onConfirm={(c) => run('reject', c)}
               trigger={
                 <Button variant="secondary" disabled={pending !== null}>
-                  <X /> Reject
+                  <X /> {t('action.reject')}
                 </Button>
               }
             />
@@ -147,16 +146,15 @@ export function DecisionBar({
 
         {canCancel && (
           <ReasonDialog
-            kind="cancel"
-            title="Withdraw this request"
-            description="This stops the approval process. Approvers are told no action is needed."
-            confirmLabel="Withdraw request"
+            title={t('decision.withdrawTitle')}
+            description={t('decision.withdrawBody')}
+            confirmLabel={t('action.withdrawRequest')}
             confirmVariant="danger"
             pending={pending === 'cancel'}
             onConfirm={(c) => run('cancel', c)}
             trigger={
               <Button variant="ghost" disabled={pending !== null}>
-                <Ban /> Withdraw
+                <Ban /> {t('action.withdraw')}
               </Button>
             }
           />
@@ -164,9 +162,7 @@ export function DecisionBar({
       </div>
 
       {canDecide && riskLevel === 'LOW' && !hasBlockingIssue && (
-        <p className="text-[11px] text-text-subtle">
-          Low risk — no policy, budget or duplicate concerns were found. One click approves.
-        </p>
+        <p className="text-[11px] text-text-subtle">{t('decision.lowRiskNote')}</p>
       )}
     </div>
   );
@@ -184,6 +180,7 @@ function Feedback({ result }: { result: { ok: boolean; message: string } }) {
           : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300',
       )}
     >
+      {/* Server actions translate before returning: they can read the locale cookie. */}
       {result.message}
     </p>
   );
@@ -199,7 +196,6 @@ function ReasonDialog({
   onConfirm,
   trigger,
 }: {
-  kind: Kind;
   title: string;
   description: string;
   confirmLabel: string;
@@ -209,6 +205,7 @@ function ReasonDialog({
   onConfirm: (comment: string) => void;
   trigger: React.ReactNode;
 }) {
+  const t = useT();
   const [open, setOpen] = React.useState(false);
   const [comment, setComment] = React.useState('');
   const [touched, setTouched] = React.useState(false);
@@ -223,7 +220,7 @@ function ReasonDialog({
         footer={
           <>
             <Button variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
+              {t('action.cancel')}
             </Button>
             <Button
               variant={confirmVariant}
@@ -244,7 +241,7 @@ function ReasonDialog({
       >
         <label className="block">
           <span className="mb-1.5 block text-xs font-medium text-text-muted">
-            {required ? 'Reason (required)' : 'Reason (optional)'}
+            {required ? t('label.reasonRequired') : t('label.reasonOptional')}
           </span>
           <Textarea
             value={comment}
@@ -254,11 +251,11 @@ function ReasonDialog({
             autoFocus
             aria-invalid={touched && invalid ? true : undefined}
             aria-describedby={touched && invalid ? 'reason-error' : undefined}
-            placeholder="This is recorded on the request and sent to the requester."
+            placeholder={t('decision.reasonPlaceholder')}
           />
           {touched && invalid && (
             <span id="reason-error" role="alert" className="mt-1 block text-xs font-medium text-rose-600 dark:text-rose-400">
-              A reason is required.
+              {t('decision.reasonRequired')}
             </span>
           )}
         </label>
