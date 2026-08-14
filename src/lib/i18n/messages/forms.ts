@@ -1,0 +1,258 @@
+import type { MessageTable } from '../types';
+
+/** Create-request forms: fields, hints, validation and the AI draft box. */
+export const forms: MessageTable = {
+  /* --- AI draft box --- */
+  'draft.title': { en: 'Draft with AI', ko: 'AI로 초안 작성' },
+  'draft.subtitle': {
+    en: 'Describe it in a sentence. The form fills in, then you check every field before submitting.',
+    ko: '한 문장으로 설명하세요. 양식이 채워지면 각 항목을 확인한 뒤 상신하시면 됩니다.',
+  },
+  'draft.aria': { en: 'Describe the request in your own words', ko: '요청 내용을 자유롭게 설명하세요' },
+  'draft.fill': { en: 'Fill the form', ko: '양식 채우기' },
+  'draft.useExample': { en: 'Use an example', ko: '예시 사용' },
+  'draft.placeholder': { en: 'Describe what you need…', ko: '필요한 내용을 설명하세요…' },
+  'draft.ready': { en: 'Draft ready — check every field before submitting.', ko: '초안이 준비되었습니다. 상신 전 각 항목을 확인하세요.' },
+  'draft.confidence': {
+    en: 'Extraction confidence {pct}% — lower confidence means check more carefully.',
+    ko: '추출 신뢰도 {pct}% — 낮을수록 더 꼼꼼히 확인하세요.',
+  },
+  'draft.missing': { en: 'Could not determine: {fields}. Fill these in yourself.', ko: '확인하지 못한 항목: {fields}. 직접 입력해 주세요.' },
+  'draft.tooShort': { en: 'Describe the request in a sentence or two.', ko: '한두 문장으로 설명해 주세요.' },
+  'draft.tooLong': { en: 'That is too long — summarize it in a couple of sentences.', ko: '너무 깁니다. 두어 문장으로 요약해 주세요.' },
+  'draft.failed': {
+    en: 'Could not generate a draft. Fill the form manually — nothing else is affected.',
+    ko: '초안을 생성하지 못했습니다. 직접 입력해 주세요. 다른 기능에는 영향이 없습니다.',
+  },
+  'draft.example.BUSINESS_TRIP': {
+    en: 'Sang and Calvin travel to Seoul 10–12 September for the AI workshop. Flights VN425 and VN669, 2 nights hotel.',
+    ko: '9월 10일부터 12일까지 상현, 캘빈과 서울 출장. AI 워크숍 참석. 항공편 VN425, VN669. 호텔 2박.',
+  },
+  'draft.example.LEAVE': { en: 'Annual leave 14 to 18 September, family holiday.', ko: '9월 14일부터 18일까지 연차, 가족 여행.' },
+  'draft.example.PURCHASE': {
+    en: '3 MacBook Pro 14" from Saigon Tech Supply for the new engineers, about $1,130 each.',
+    ko: '신입 개발자용 MacBook Pro 14인치 3대, Saigon Tech Supply, 대당 약 $1,130.',
+  },
+  'draft.example.EXPENSE': {
+    en: 'Client dinner at Jungsik on 2 September, $148, plus airport taxi $32.',
+    ko: '9월 2일 정식당 고객 접대 $148, 공항 택시 $32.',
+  },
+  'draft.example.HR': {
+    en: 'I need an employment certificate for a visa application by the end of the month.',
+    ko: '비자 신청용 재직증명서가 이달 말까지 필요합니다.',
+  },
+  'draft.example.GENERAL': {
+    en: 'Renew the office liability insurance for the Vietnam office, around $3,200.',
+    ko: '베트남 지사 사무실 배상책임보험 갱신, 약 $3,200.',
+  },
+
+  /* --- form actions --- */
+  'form.savedDraft': { en: '{number} saved as a draft.', ko: '{number} 임시저장되었습니다.' },
+  'form.submitted': { en: '{number} submitted for approval.', ko: '{number} 결재 상신되었습니다.' },
+  'form.submittedSteps': { en: '{number} submitted to {count} approval step(s).', ko: '{number} 상신 완료, 결재 단계 {count}개.' },
+  'form.withdrawn': { en: '{number} has been withdrawn.', ko: '{number} 상신이 취소되었습니다.' },
+  'form.commentAdded': { en: 'Comment added.', ko: '댓글이 등록되었습니다.' },
+  'form.createFailed': { en: 'The request could not be created. Please try again.', ko: '기안을 생성하지 못했습니다. 다시 시도해 주세요.' },
+
+  /* --- leave form --- */
+  'leaveForm.handoverTo': { en: 'Hand over to', ko: '업무 인수인계' },
+  'leaveForm.handoverHint': { en: 'Who covers your work while you are away.', ko: '부재 중 업무를 대신할 담당자입니다.' },
+  'leaveForm.firstDay': { en: 'First day', ko: '시작일' },
+  'leaveForm.lastDay': { en: 'Last day', ko: '종료일' },
+  'leaveForm.halfStart': { en: 'Half day on the first day', ko: '시작일 반차' },
+  'leaveForm.halfEnd': { en: 'Half day on the last day', ko: '종료일 반차' },
+  'leaveForm.emergencyHint': { en: 'Optional — a number your manager can reach you on.', ko: '선택 — 상급자가 연락할 수 있는 번호입니다.' },
+  'leaveForm.thisRequest': { en: 'This request', ko: '이번 신청' },
+  'leaveForm.pickDates': { en: 'Pick a start and end date to see the calculation.', ko: '시작일과 종료일을 선택하면 계산 결과가 표시됩니다.' },
+  'leaveForm.weekendDays': { en: 'Weekend days', ko: '주말' },
+  'leaveForm.publicHolidays': { en: 'Public holidays', ko: '공휴일' },
+  'leaveForm.deducted': { en: 'Working days deducted', ko: '차감 근무일수' },
+  'leaveForm.balanceAfter': { en: 'Balance after approval', ko: '승인 후 잔여' },
+  'leaveForm.overdrawn': {
+    en: 'This exceeds your remaining balance by {days} day(s). You can still submit it — HR will see the shortfall on the approval screen.',
+    ko: '잔여 연차보다 {days}일 초과합니다. 상신은 가능하며, 인사팀이 결재 화면에서 초과분을 확인합니다.',
+  },
+  'leaveForm.longLeave': {
+    en: 'More than 10 consecutive working days — this will also need Director approval.',
+    ko: '연속 근무일 10일을 초과합니다. 임원 승인이 추가로 필요합니다.',
+  },
+  'leaveForm.noWorkingDays': {
+    en: 'That range contains no working days — it is all weekend or public holiday.',
+    ko: '선택한 기간에 근무일이 없습니다. 주말 또는 공휴일만 포함되어 있습니다.',
+  },
+  'leaveForm.endBeforeStart': { en: 'The end date cannot be before the start date.', ko: '종료일은 시작일보다 빠를 수 없습니다.' },
+
+  /* --- trip form --- */
+  'tripForm.destinationDates': { en: 'Destination and dates', ko: '목적지 및 일정' },
+  'tripForm.city': { en: 'City', ko: '도시' },
+  'tripForm.country': { en: 'Country', ko: '국가' },
+  'tripForm.departure': { en: 'Departure', ko: '출발일' },
+  'tripForm.return': { en: 'Return', ko: '귀국일' },
+  'tripForm.internationalLabel': { en: 'International trip', ko: '해외 출장' },
+  'tripForm.internationalHint': {
+    en: '— international travel always requires Director approval.',
+    ko: '— 해외 출장은 반드시 임원 승인이 필요합니다.',
+  },
+  'tripForm.purposePlaceholder': {
+    en: 'What is the trip for, and why does it need to happen in person?',
+    ko: '출장 목적과 대면이 필요한 이유를 적어 주세요.',
+  },
+  'tripForm.eventLabel': { en: 'Event or conference', ko: '행사·컨퍼런스' },
+  'tripForm.partnerLabel': { en: 'Partner or counterparty', ko: '파트너·상대처' },
+  'tripForm.travellersTitle': { en: 'Travellers', ko: '출장자' },
+  'tripForm.travellersSub': { en: 'You are included automatically.', ko: '본인은 자동으로 포함됩니다.' },
+  'tripForm.additionalTravellers': { en: 'Additional travellers', ko: '동행자' },
+  'tripForm.logistics': { en: 'Flights, hotel and transport', ko: '항공·숙박·교통' },
+  'tripForm.rateHintKnown': {
+    en: 'Company average in {city}: {amount}. Policy cap is $150.',
+    ko: '{city} 사내 평균 {amount}. 정책 상한 $150.',
+  },
+  'tripForm.rateHint': { en: 'Policy cap is $150 per night.', ko: '정책 상한은 1박당 $150입니다.' },
+  'tripForm.estimatedCost': { en: 'Estimated cost', ko: '예상 비용' },
+  'tripForm.estimatedCostSub': {
+    en: 'Break the estimate down so approvers can see where the money goes.',
+    ko: '항목별로 나누어 입력하면 결재자가 비용 구성을 확인할 수 있습니다.',
+  },
+  'tripForm.addLine': { en: 'Add line', ko: '항목 추가' },
+  'tripForm.costCategory': { en: 'Cost category {n}', ko: '비용 분류 {n}' },
+  'tripForm.costDescription': { en: 'Cost description {n}', ko: '비용 설명 {n}' },
+  'tripForm.costAmount': { en: 'Cost amount {n}', ko: '비용 금액 {n}' },
+  'tripForm.removeCost': { en: 'Remove cost line {n}', ko: '비용 항목 {n} 삭제' },
+  'tripForm.summary': { en: 'Summary', ko: '요약' },
+  'tripForm.hotelOver': {
+    en: '{rate} per night is above the $150 policy cap. You can still submit — the approver will see the difference and the reason.',
+    ko: '1박 {rate}는 정책 상한 $150을 초과합니다. 상신은 가능하며, 결재자가 초과분과 사유를 확인합니다.',
+  },
+  'tripForm.internationalNote': {
+    en: 'International — routes to the Director after your manager.',
+    ko: '해외 출장 — 팀장 결재 후 임원에게 전달됩니다.',
+  },
+  'tripForm.endBeforeStart': { en: 'The return date cannot be before the departure date.', ko: '귀국일은 출발일보다 빠를 수 없습니다.' },
+  'tripForm.needCostLine': { en: 'Add at least one cost line.', ko: '비용 항목을 최소 1개 입력하세요.' },
+  'tripForm.needCity': { en: 'Enter the destination city.', ko: '목적지 도시를 입력하세요.' },
+  'tripForm.needCountry': { en: 'Enter the destination country.', ko: '목적지 국가를 입력하세요.' },
+  'tripForm.needPurpose': { en: 'Explain the purpose in a sentence.', ko: '출장 목적을 한 문장으로 설명하세요.' },
+
+  /* --- purchase form --- */
+  'prForm.detail': { en: 'Purchase detail', ko: '구매 상세' },
+  'prForm.vendorHint': { en: 'Preferred vendors are listed first.', ko: '우선 거래처가 먼저 표시됩니다.' },
+  'prForm.neededBy': { en: 'Needed by', ko: '필요 시점' },
+  'prForm.quotationsLabel': { en: 'Quotations attached', ko: '첨부 견적 수' },
+  'prForm.quotationsHint': { en: 'Two are required above $3,000.', ko: '$3,000 초과 시 2건 이상 필요합니다.' },
+  'prForm.purposePlaceholder': {
+    en: 'Why is this needed, and what happens if it is not approved?',
+    ko: '필요한 이유와 승인되지 않을 경우의 영향을 적어 주세요.',
+  },
+  'prForm.lineItems': { en: 'Line items', ko: '품목' },
+  'prForm.addItem': { en: 'Add item', ko: '품목 추가' },
+  'prForm.itemName': { en: 'Item name {n}', ko: '품목명 {n}' },
+  'prForm.quantityAria': { en: 'Quantity {n}', ko: '수량 {n}' },
+  'prForm.unitPriceAria': { en: 'Unit price {n}', ko: '단가 {n}' },
+  'prForm.removeItem': { en: 'Remove item {n}', ko: '품목 {n} 삭제' },
+  'prForm.beforeSubmit': { en: 'Before you submit', ko: '상신 전 확인' },
+  'prForm.needTwoQuotes': {
+    en: 'Above $3,000 with only {count} quotation. Company policy requires two — Finance will block this otherwise.',
+    ko: '$3,000 초과인데 견적이 {count}건뿐입니다. 사내 정책상 2건이 필요하며, 미충족 시 재무팀에서 반려됩니다.',
+  },
+  'prForm.directorNote': { en: 'Above $1,000 — routes to the Director after Finance.', ko: '$1,000 초과 — 재무팀 검토 후 임원 승인으로 이어집니다.' },
+  'prForm.approverNote': {
+    en: "The approver will see this priced against previous purchases of the same item and against your department's remaining budget.",
+    ko: '결재자는 동일 품목의 과거 단가, 부서 잔여 예산과 비교된 형태로 확인합니다.',
+  },
+  'prForm.needItem': { en: 'Add at least one line item.', ko: '품목을 최소 1개 입력하세요.' },
+  'prForm.needItemName': { en: 'Name the item.', ko: '품목명을 입력하세요.' },
+  'prForm.needPurpose': { en: 'Explain why this is needed.', ko: '필요한 이유를 설명하세요.' },
+
+  /* --- expense form --- */
+  'expForm.claimDetail': { en: 'Claim detail', ko: '정산 정보' },
+  'expForm.paidBy': { en: 'Paid by', ko: '결제 수단' },
+  'expForm.linkTrip': { en: 'Link to a business trip', ko: '출장 연결' },
+  'expForm.linkTripHint': {
+    en: 'Links the claim to an approved trip so travel cost reporting stays complete.',
+    ko: '승인된 출장과 연결하면 출장비 집계가 누락 없이 유지됩니다.',
+  },
+  'expForm.notTripRelated': { en: 'Not related to a trip', ko: '출장과 무관' },
+  'expForm.receipts': { en: 'Receipts', ko: '영수증' },
+  'expForm.receiptsSub': {
+    en: 'Attach receipts and the details are read into the lines below for you to check.',
+    ko: '영수증을 첨부하면 아래 항목이 자동으로 채워집니다. 내용은 확인해 주세요.',
+  },
+  'expForm.chooseFiles': { en: 'Choose receipt files', ko: '영수증 파일 선택' },
+  'expForm.readingReceipts': { en: 'Reading receipts…', ko: '영수증을 읽는 중…' },
+  'expForm.fileHint': {
+    en: 'Images or PDF. Each receipt becomes an expense line you can edit.',
+    ko: '이미지 또는 PDF. 영수증 1건당 수정 가능한 경비 항목 1줄이 생성됩니다.',
+  },
+  'expForm.prototypeNote': {
+    en: 'Prototype note: files are not uploaded to storage. Merchant, date, amount and category are inferred and flagged as AI-filled — always check them against the paper receipt.',
+    ko: '프로토타입 안내: 파일은 저장소에 업로드되지 않습니다. 사용처·일자·금액·분류는 추론된 값이며 AI 입력으로 표시됩니다. 실제 영수증과 대조해 주세요.',
+  },
+  'expForm.expenseLines': { en: 'Expense lines', ko: '경비 항목' },
+  'expForm.addLine': { en: 'Add line', ko: '항목 추가' },
+  'expForm.dateAria': { en: 'Date {n}', ko: '일자 {n}' },
+  'expForm.categoryAria': { en: 'Category {n}', ko: '분류 {n}' },
+  'expForm.merchantAria': { en: 'Merchant {n}', ko: '사용처 {n}' },
+  'expForm.amountAria': { en: 'Amount {n}', ko: '금액 {n}' },
+  'expForm.removeLine': { en: 'Remove line {n}', ko: '항목 {n} 삭제' },
+  'expForm.aiFilled': {
+    en: 'AI-filled from a receipt · {pct}% confidence — check the merchant, date and amount.',
+    ko: '영수증에서 AI가 입력 · 신뢰도 {pct}% — 사용처, 일자, 금액을 확인하세요.',
+  },
+  'expForm.totalLines': { en: 'Total {amount} across {count} line(s)', ko: '{count}개 항목, 합계 {amount}' },
+  'expForm.mealBreach': {
+    en: 'Meals on {date} total {amount} — above the $50 daily allowance.',
+    ko: '{date} 식비 합계 {amount} — 1일 한도 $50을 초과합니다.',
+  },
+  'expForm.financeNote': { en: 'Above $50 — Finance reviews after your manager.', ko: '$50 초과 — 팀장 결재 후 재무팀이 검토합니다.' },
+  'expForm.duplicateNote': {
+    en: 'Each line is checked against every other claim in the company for a matching receipt before it reaches an approver.',
+    ko: '각 항목은 결재자에게 전달되기 전에 전사 모든 정산서와 대조하여 중복 영수증을 검사합니다.',
+  },
+  'expForm.needLine': { en: 'Add at least one expense line.', ko: '경비 항목을 최소 1개 입력하세요.' },
+  'expForm.receiptFailed': { en: 'Could not read that receipt. Enter the details manually.', ko: '영수증을 읽지 못했습니다. 직접 입력해 주세요.' },
+
+  /* --- generic form --- */
+  'genForm.hrTitle': { en: 'HR request', ko: '인사 요청' },
+  'genForm.generalTitle': { en: 'General approval', ko: '일반 결재' },
+  'genForm.titlePlaceholderHr': { en: 'Employment certificate for visa application', ko: '비자 신청용 재직증명서' },
+  'genForm.titlePlaceholderGeneral': { en: 'Annual insurance renewal', ko: '연간 보험 갱신' },
+  'genForm.detailsPlaceholder': {
+    en: 'Explain what you need and why. The approver sees an AI summary of this alongside the full text.',
+    ko: '필요한 내용과 이유를 적어 주세요. 결재자는 전문과 함께 AI 요약을 확인합니다.',
+  },
+  'genForm.amountHint': {
+    en: 'Leave at zero if there is no cost. Above $1,000 also needs Director approval.',
+    ko: '비용이 없으면 0으로 두세요. $1,000 초과 시 임원 승인이 추가됩니다.',
+  },
+  'genForm.routing': { en: 'Routing', ko: '결재선' },
+  'genForm.routingHr': { en: 'Goes to your line manager, then HR.', ko: '팀장 결재 후 인사팀으로 전달됩니다.' },
+  'genForm.routingGeneral': { en: 'Goes to your line manager.', ko: '팀장 결재로 진행됩니다.' },
+  'genForm.routingGeneralDirector': {
+    en: 'Goes to your line manager, then the Director because the amount is above $1,000.',
+    ko: '팀장 결재 후, 금액이 $1,000을 초과하여 임원 승인으로 이어집니다.',
+  },
+  'genForm.needTitle': { en: 'Give the request a short title.', ko: '기안 제목을 입력하세요.' },
+  'genForm.needCategory': { en: 'Choose or enter a category.', ko: '분류를 선택하거나 입력하세요.' },
+  'genForm.needDetails': { en: 'Describe the request.', ko: '요청 내용을 설명하세요.' },
+
+  /* --- validation --- */
+  'valid.required': { en: 'This field is required.', ko: '필수 입력 항목입니다.' },
+  'valid.tooLong': { en: 'Too long — keep it under {max} characters.', ko: '{max}자 이내로 입력하세요.' },
+  'valid.badDate': { en: 'Use a valid date.', ko: '올바른 날짜를 입력하세요.' },
+  'valid.minZero': { en: 'Must be zero or more.', ko: '0 이상이어야 합니다.' },
+  'valid.badAmount': { en: 'That amount looks wrong.', ko: '금액이 올바르지 않습니다.' },
+  'valid.minQuantity': { en: 'Quantity must be at least 1.', ko: '수량은 1 이상이어야 합니다.' },
+
+  /* --- filters --- */
+  'filter.searchRequests': { en: 'Search title, request number or description…', ko: '제목, 기안번호, 내용 검색…' },
+  'filter.searchAria': { en: 'Search requests', ko: '기안 검색' },
+  'filter.byType': { en: 'Filter by request type', ko: '기안 유형 필터' },
+  'filter.byStatus': { en: 'Filter by status', ko: '상태 필터' },
+  'filter.byRisk': { en: 'Filter by AI risk', ko: 'AI 위험도 필터' },
+  'filter.riskOption': { en: '{level} risk', ko: '위험 {level}' },
+  'filter.submittedFrom': { en: 'Submitted from', ko: '상신 시작일' },
+  'filter.submittedTo': { en: 'Submitted to', ko: '상신 종료일' },
+  'filter.minAmount': { en: 'Minimum amount (USD)', ko: '최소 금액 (USD)' },
+  'filter.maxAmount': { en: 'Maximum amount (USD)', ko: '최대 금액 (USD)' },
+  'filter.clearCount': { en: 'Clear {count}', ko: '{count}개 해제' },
+};
