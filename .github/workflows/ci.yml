@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Typecheck, lint, build
+    name: Typecheck, lint, translations, build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +31,10 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      # Both languages present, placeholders matched, no enum key gaps.
+      - name: Translation audit
+        run: npm run i18n:audit
 
       - name: Build
         run: npm run build
@@ -67,7 +71,8 @@ jobs:
           AUTH_SECRET: ci-test-secret
           DB_DRIVER: pglite
 
-      # 7 roles x 27 pages x 10 report endpoints.
+      # 7 roles x 27 pages x 2 languages, plus 10 report endpoints. Also fails
+      # on any message key that reaches the DOM as text.
       - name: Route sweep
         run: npm run test:routes
 
