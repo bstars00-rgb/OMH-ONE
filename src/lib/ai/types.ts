@@ -1,4 +1,5 @@
 import type { RequestType, RiskLevel } from '@/types/domain';
+import type { Locale } from '@/lib/i18n/types';
 
 export type CheckStatus = 'PASS' | 'WARN' | 'FAIL';
 
@@ -182,12 +183,26 @@ export interface RequestContext {
   approvalChain: { name: string; approverName: string | null; status: string }[];
 }
 
+/**
+ * Everything a provider needs to write in the reader's language.
+ *
+ * Passed per call rather than fixed at construction because the provider is
+ * cached for the process while the locale changes per request.
+ */
+export interface AiLocaleContext {
+  locale: Locale;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+  money: (amount: number | string | null | undefined, currency?: string) => string;
+  date: (value: Date | string | null | undefined) => string;
+  range: (start: string, end: string) => string;
+}
+
 export interface AIProvider {
   readonly name: string;
-  summarizeRequest(ctx: RequestContext): Promise<RequestSummary>;
-  reviewPolicy(ctx: RequestContext): Promise<PolicyReview>;
-  detectRisk(ctx: RequestContext, policy: PolicyReview): Promise<RiskAssessment>;
-  answerRequestQuestion(question: string, ctx: RequestContext): Promise<CopilotAnswer>;
+  summarizeRequest(ctx: RequestContext, l: AiLocaleContext): Promise<RequestSummary>;
+  reviewPolicy(ctx: RequestContext, l: AiLocaleContext): Promise<PolicyReview>;
+  detectRisk(ctx: RequestContext, policy: PolicyReview, l: AiLocaleContext): Promise<RiskAssessment>;
+  answerRequestQuestion(question: string, ctx: RequestContext, l: AiLocaleContext): Promise<CopilotAnswer>;
   generateForm(prompt: string, type: RequestType, ctx: FormGenerationContext): Promise<FormDraft>;
   extractExpense(input: { fileName: string; hintText?: string }): Promise<ExpenseDraftLine>;
 }

@@ -15,6 +15,13 @@
       "when": 1786680946722,
       "tag": "0001_approver_and_office_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786682043976,
+      "tag": "0002_ai_review_locale",
+      "breakpoints": true
     }
   ]
 }

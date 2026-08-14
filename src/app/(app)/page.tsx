@@ -1,9 +1,12 @@
 import Link from 'next/link';
 import { ArrowRight, Plus } from 'lucide-react';
 import { requireLiveSession } from '@/server/auth-guard';
-import { can, scopeLabel } from '@/lib/rbac';
+import { can, scopeLabelKey } from '@/lib/rbac';
 import { isLiveModel } from '@/lib/ai';
+import { aiLocale } from '@/lib/ai/locale-context';
 import { buildMorningBrief } from '@/lib/ai/insights';
+import { getI18n } from '@/lib/i18n/server';
+import { formatCompactL, formatDateL, formatDurationL, formatMoneyL, formatRangeL, monthLabelL } from '@/lib/i18n/format';
 import {
   getApprovalTrend,
   getAttentionItems,
@@ -24,18 +27,17 @@ import { BottleneckBars, CategoryBars, ChartCard, SpendLine, StatusDonut, TrendA
 import { Card, CardHeader, CardBody, Progress, buttonVariants } from '@/components/ui/primitives';
 import { PriorityBadge, RiskBadge, SlaBadge, StatusBadge, TypeBadge } from '@/components/ui/badges';
 import { EmptyState } from '@/components/ui/states';
-import { formatCompact, formatMoney } from '@/lib/money';
-import { formatDate, formatDuration, formatRange } from '@/lib/dates';
-import { humanize } from '@/lib/utils';
-import { STATUS_META, type RequestStatus } from '@/types/domain';
 
 export default async function HomePage() {
   const session = await requireLiveSession();
+  const { t, locale } = await getI18n();
   const companyWide = can(session, 'analytics.company');
+  const scope = scopeLabelKey(session);
+  const scopeText = t(scope.key, scope.vars);
 
   const [brief, stats, attention, statusMix, trend, deptSpend, catSpend, leaveMix, bottlenecks, trips, leave, budgets] =
     await Promise.all([
-      buildMorningBrief(session),
+      buildMorningBrief(session, aiLocale(locale)),
       getDashboardStats(session),
       getAttentionItems(session),
       getStatusMix(session),
@@ -49,19 +51,22 @@ export default async function HomePage() {
       getBudgetPositions(session),
     ]);
 
+  const money = (v: number | string) => formatMoneyL(locale, v);
+  const compact = (v: number | string) => formatCompactL(locale, v);
   const pct = (now: number, prev: number) => (prev > 0 ? Math.round(((now - prev) / prev) * 100) : null);
   const spendDelta = pct(stats.spendThisMonth, stats.spendLastMonth);
   const requestDelta = pct(stats.requestsThisMonth, stats.requestsLastMonth);
   const strainedBudgets = budgets.filter((b) => b.utilization >= 0.7).slice(0, 5);
+  const trendData = trend.map((p) => ({ ...p, label: monthLabelL(locale, p.month) }));
 
   return (
     <>
       <PageHeader
-        title="Home"
-        description={`${scopeLabel(session)} · everything below reflects only what your role can see.`}
+        title={t('home.title')}
+        description={t('home.subtitle', { scope: scopeText })}
         actions={
           <Link href="/requests/new" className={buttonVariants({ variant: 'primary', size: 'md' })}>
-            <Plus /> New request
+            <Plus /> {t('action.newRequest')}
           </Link>
         }
       />
@@ -72,49 +77,55 @@ export default async function HomePage() {
         {/* Metric tiles */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
           <StatTile
-            label="Pending approvals"
+            label={t('home.tile.pending')}
             value={stats.pendingForMe}
-            sublabel={stats.overdueForMe > 0 ? `${stats.overdueForMe} overdue` : 'On track'}
+            sublabel={stats.overdueForMe > 0 ? t('home.tile.pendingOverdue', { count: stats.overdueForMe }) : t('home.tile.onTrack')}
             icon="Inbox"
             href="/approvals"
             tone={stats.overdueForMe > 0 ? 'critical' : stats.pendingForMe > 0 ? 'warning' : 'positive'}
           />
           <StatTile
-            label="Requests this month"
+            label={t('home.tile.requestsThisMonth')}
             value={stats.requestsThisMonth}
             delta={requestDelta === null ? null : { value: requestDelta }}
-            sublabel="vs last month"
+            sublabel={t('label.vsLastMonth')}
             icon="FileText"
             href="/approvals?view=all"
           />
           <StatTile
-            label="Approved spend (MTD)"
-            value={formatCompact(stats.spendThisMonth)}
+            label={t('home.tile.spendMtd')}
+            value={compact(stats.spendThisMonth)}
             delta={spendDelta === null ? null : { value: spendDelta }}
-            sublabel="vs last month"
+            sublabel={t('label.vsLastMonth')}
             icon="Wallet"
             href="/analytics"
           />
-          <StatTile label="On leave today" value={stats.onLeaveToday} sublabel="Across your scope" icon="CalendarDays" href="/leave" />
-          <StatTile label="Trips in progress" value={stats.activeTrips} sublabel={`${stats.upcomingTrips} upcoming`} icon="Plane" href="/travel" />
+          <StatTile label={t('home.tile.onLeave')} value={stats.onLeaveToday} sublabel={t('home.tile.inScope')} icon="CalendarDays" href="/leave" />
           <StatTile
-            label="PR pending"
+            label={t('home.tile.tripsActive')}
+            value={stats.activeTrips}
+            sublabel={t('home.tile.tripsUpcoming', { count: stats.upcomingTrips })}
+            icon="Plane"
+            href="/travel"
+          />
+          <StatTile
+            label={t('home.tile.prPending')}
             value={stats.pendingPurchase}
-            sublabel={formatCompact(stats.pendingPurchaseValue)}
+            sublabel={compact(stats.pendingPurchaseValue)}
             icon="ShoppingCart"
             href="/procurement"
           />
           <StatTile
-            label="Avg approval time"
-            value={stats.avgApprovalHours === null ? '—' : formatDuration(stats.avgApprovalHours)}
-            sublabel="Last 90 days"
+            label={t('home.tile.avgApproval')}
+            value={stats.avgApprovalHours === null ? '—' : formatDurationL(locale, stats.avgApprovalHours)}
+            sublabel={t('label.last90Days')}
             icon="Timer"
             href="/analytics"
           />
           <StatTile
-            label="Past SLA"
+            label={t('home.tile.pastSla')}
             value={stats.slaOverdue}
-            sublabel="Company-wide steps"
+            sublabel={t('home.tile.companySteps')}
             icon="AlarmClockOff"
             href="/approvals?sort=sla"
             tone={stats.slaOverdue > 0 ? 'warning' : 'positive'}
@@ -124,20 +135,16 @@ export default async function HomePage() {
         {/* Needs your attention */}
         <Card>
           <CardHeader
-            title="Needs your attention"
-            description="The requests waiting on your decision, most consequential first."
+            title={t('home.attention.title')}
+            description={t('home.attention.subtitle')}
             actions={
               <Link href="/approvals" className="text-xs font-medium text-accent hover:underline">
-                View all
+                {t('action.viewAll')}
               </Link>
             }
           />
           {attention.length === 0 ? (
-            <EmptyState
-              title="You're all caught up"
-              description="Nothing is waiting on your decision right now."
-              className="py-10"
-            />
+            <EmptyState title={t('home.attention.empty')} description={t('home.attention.emptyHint')} className="py-10" />
           ) : (
             <ul className="divide-y divide-border-subtle">
               {attention.map((a) => (
@@ -154,9 +161,7 @@ export default async function HomePage() {
                         {a.requestNumber} · {a.requesterName}
                       </span>
                     </span>
-                    {a.amountBase > 0 && (
-                      <span className="text-[13px] font-medium text-text tabular">{formatMoney(a.amountBase)}</span>
-                    )}
+                    {a.amountBase > 0 && <span className="text-[13px] font-medium text-text tabular">{money(a.amountBase)}</span>}
                     {a.risk && <RiskBadge risk={a.risk} />}
                     <SlaBadge hoursRemaining={a.hoursToDue} />
                     <ArrowRight className="size-3.5 shrink-0 text-text-subtle" aria-hidden="true" />
@@ -170,104 +175,97 @@ export default async function HomePage() {
         {/* Charts */}
         <div className="grid gap-4 lg:grid-cols-2">
           <ChartCard
-            title="Approval status"
-            subtitle="Requests in your scope, last 6 months"
+            title={t('home.chart.statusMix')}
+            subtitle={t('home.chart.statusMixSub')}
             metric={String(statusMix.reduce((s, x) => s + x.count, 0))}
             isEmpty={statusMix.length === 0}
           >
-            <StatusDonut
-              data={statusMix.map((s) => ({
-                ...s,
-                label: STATUS_META[s.status as RequestStatus]?.label ?? s.status,
-              }))}
-            />
+            <StatusDonut data={statusMix.map((s) => ({ ...s, label: t(`status.${s.status}`) }))} />
           </ChartCard>
 
           <ChartCard
-            title="Approval trend"
-            subtitle="Submitted, approved and rejected by month"
-            metric={String(trend.reduce((s, t) => s + t.submitted, 0))}
-            delta={requestDelta === null ? null : { value: requestDelta, label: 'this month' }}
-            isEmpty={trend.every((t) => t.submitted === 0)}
+            title={t('home.chart.trend')}
+            subtitle={t('home.chart.trendSub')}
+            metric={String(trend.reduce((s, x) => s + x.submitted, 0))}
+            delta={requestDelta === null ? null : { value: requestDelta, label: t('label.thisMonth') }}
+            isEmpty={trend.every((x) => x.submitted === 0)}
           >
-            <TrendArea data={trend} />
+            <TrendArea data={trendData} />
           </ChartCard>
 
           <ChartCard
-            title="Approved spend"
-            subtitle="Monthly total, base currency USD"
-            metric={formatMoney(stats.spendThisMonth)}
-            delta={spendDelta === null ? null : { value: spendDelta, label: 'vs last month' }}
-            isEmpty={trend.every((t) => t.spend === 0)}
+            title={t('home.chart.spend')}
+            subtitle={t('home.chart.spendSub')}
+            metric={money(stats.spendThisMonth)}
+            delta={spendDelta === null ? null : { value: spendDelta, label: t('label.vsLastMonth') }}
+            isEmpty={trend.every((x) => x.spend === 0)}
           >
-            <SpendLine data={trend} />
+            <SpendLine data={trendData} />
           </ChartCard>
 
           <ChartCard
-            title="Spend by department"
-            subtitle="Approved, last 3 months"
-            metric={formatMoney(deptSpend.reduce((s, d) => s + d.value, 0))}
+            title={t('home.chart.byDept')}
+            subtitle={t('home.chart.byDeptSub')}
+            metric={money(deptSpend.reduce((s, d) => s + d.value, 0))}
             isEmpty={deptSpend.length === 0}
-            emptyMessage="No approved spend in your scope for this period."
+            emptyMessage={t('home.chart.byDeptEmpty')}
           >
             <CategoryBars data={deptSpend} />
           </ChartCard>
 
           <ChartCard
-            title="Spend by category"
-            subtitle="Expense lines, trip costs and purchases combined"
-            metric={formatMoney(catSpend.reduce((s, d) => s + d.value, 0))}
+            title={t('home.chart.byCategory')}
+            subtitle={t('home.chart.byCategorySub')}
+            metric={money(catSpend.reduce((s, d) => s + d.value, 0))}
             isEmpty={catSpend.length === 0}
           >
-            <CategoryBars data={catSpend.map((c) => ({ ...c, name: title(c.name) }))} />
+            <CategoryBars data={catSpend.map((c) => ({ ...c, name: t(`expenseCategory.${c.name}`) }))} />
           </ChartCard>
 
           <ChartCard
-            title="Approval bottleneck"
-            subtitle="Average hours per decision by approver role"
-            metric={bottlenecks[0] ? `${bottlenecks[0].avgHours}h` : '—'}
+            title={t('home.chart.bottleneck')}
+            subtitle={t('home.chart.bottleneckSub')}
+            metric={bottlenecks[0] ? formatDurationL(locale, bottlenecks[0].avgHours) : '—'}
             isEmpty={bottlenecks.length === 0}
-            emptyMessage="Not enough completed approvals to measure."
+            emptyMessage={t('home.chart.bottleneckEmpty')}
           >
-            <BottleneckBars data={bottlenecks.map((b) => ({ role: roleLabel(b.role), avgHours: b.avgHours }))} />
+            <BottleneckBars data={bottlenecks.map((b) => ({ role: t(`approverRole.${b.role}`), avgHours: b.avgHours }))} />
           </ChartCard>
 
           <ChartCard
-            title="Leave taken this year"
-            subtitle="Approved working days by leave type"
-            metric={`${leaveMix.reduce((s, l) => s + l.value, 0)} days`}
+            title={t('home.chart.leave')}
+            subtitle={t('home.chart.leaveSub')}
+            metric={`${leaveMix.reduce((s, x) => s + x.value, 0)}${t('label.days')}`}
             isEmpty={leaveMix.length === 0}
           >
-            <CategoryBars data={leaveMix.map((l) => ({ ...l, name: title(l.name) }))} money={false} />
+            <CategoryBars data={leaveMix.map((x) => ({ ...x, name: t(`leaveType.${x.name}`) }))} money={false} />
           </ChartCard>
 
           {/* Budget position — a table, because the exact figure matters more than the shape */}
           <Card>
             <CardHeader
-              title="Budget pressure"
-              description="Quarterly lines above 70% utilisation"
+              title={t('home.budget.title')}
+              description={t('home.budget.subtitle')}
               actions={
                 can(session, 'finance.view') ? (
                   <Link href="/budgets" className="text-xs font-medium text-accent hover:underline">
-                    All budgets
+                    {t('home.budget.allBudgets')}
                   </Link>
                 ) : undefined
               }
             />
             <CardBody className="space-y-3">
               {strainedBudgets.length === 0 ? (
-                <p className="py-6 text-center text-xs text-text-subtle">
-                  No budget line is above 70% utilisation this quarter.
-                </p>
+                <p className="py-6 text-center text-xs text-text-subtle">{t('home.budget.none')}</p>
               ) : (
                 strainedBudgets.map((b) => (
                   <div key={`${b.departmentCode}-${b.category}`}>
                     <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
                       <span className="font-medium text-text">
-                        {b.departmentCode} · {title(b.category)}
+                        {b.departmentCode} · {t(`budgetCategory.${b.category}`)}
                       </span>
                       <span className="text-text-muted tabular">
-                        {formatMoney(b.spent + b.committed)} / {formatMoney(b.allocated)}
+                        {money(b.spent + b.committed)} / {money(b.allocated)}
                         <span
                           className={
                             b.utilization >= 1
@@ -279,11 +277,7 @@ export default async function HomePage() {
                         </span>
                       </span>
                     </div>
-                    <Progress
-                      value={b.spent + b.committed}
-                      max={b.allocated}
-                      label={`${b.departmentCode} ${b.category} budget utilisation`}
-                    />
+                    <Progress value={b.spent + b.committed} max={b.allocated} label={`${b.departmentCode} ${b.category}`} />
                   </div>
                 ))
               )}
@@ -295,35 +289,35 @@ export default async function HomePage() {
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader
-              title="Upcoming business trips"
-              description="Next departures in your scope"
+              title={t('home.trips.title')}
+              description={t('home.trips.subtitle')}
               actions={
                 <Link href="/travel" className="text-xs font-medium text-accent hover:underline">
-                  Travel dashboard
+                  {t('home.trips.link')}
                 </Link>
               }
             />
             {trips.length === 0 ? (
-              <EmptyState title="No upcoming trips" description="Approved and pending trips appear here." className="py-8" />
+              <EmptyState title={t('home.trips.empty')} description={t('home.trips.emptyHint')} className="py-8" />
             ) : (
               <ul className="divide-y divide-border-subtle">
-                {trips.map((t) => (
-                  <li key={t.requestId}>
+                {trips.map((tr) => (
+                  <li key={tr.requestId}>
                     <Link
-                      href={`/requests/${t.requestId}`}
+                      href={`/requests/${tr.requestId}`}
                       className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 transition-colors hover:bg-surface-hover"
                     >
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[13px] font-medium text-text">
-                          {t.city}, {t.country}
+                          {tr.city}, {tr.country}
                         </span>
                         <span className="block truncate text-[11px] text-text-muted">
-                          {t.leadName}
-                          {t.travellers > 1 ? ` +${t.travellers - 1}` : ''} · {formatRange(t.startDate, t.endDate)}
+                          {tr.leadName}
+                          {tr.travellers > 1 ? ` +${tr.travellers - 1}` : ''} · {formatRangeL(locale, tr.startDate, tr.endDate)}
                         </span>
                       </span>
-                      <span className="text-[13px] font-medium text-text tabular">{formatMoney(t.cost)}</span>
-                      <StatusBadge status={t.status} />
+                      <span className="text-[13px] font-medium text-text tabular">{money(tr.cost)}</span>
+                      <StatusBadge status={tr.status} />
                     </Link>
                   </li>
                 ))}
@@ -332,29 +326,25 @@ export default async function HomePage() {
           </Card>
 
           <Card>
-            <CardHeader
-              title="Team leave, next 14 days"
-              description="Approved and pending"
-              actions={
-                <Link href="/calendar" className="text-xs font-medium text-accent hover:underline">
-                  Calendar
-                </Link>
-              }
-            />
+            <CardHeader title={t('home.leave.title')} description={t('home.leave.subtitle')} actions={
+              <Link href="/calendar" className="text-xs font-medium text-accent hover:underline">
+                {t('nav.calendar')}
+              </Link>
+            } />
             {leave.length === 0 ? (
-              <EmptyState title="Nobody is scheduled off" description="Approved leave appears here." className="py-8" />
+              <EmptyState title={t('home.leave.empty')} description={t('home.leave.emptyHint')} className="py-8" />
             ) : (
               <ul className="divide-y divide-border-subtle">
-                {leave.map((l, i) => (
-                  <li key={`${l.employeeName}-${i}`} className="flex items-center gap-3 px-4 py-2.5">
+                {leave.map((row, i) => (
+                  <li key={`${row.employeeName}-${i}`} className="flex items-center gap-3 px-4 py-2.5">
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-medium text-text">{l.employeeName}</span>
+                      <span className="block truncate text-[13px] font-medium text-text">{row.employeeName}</span>
                       <span className="block truncate text-[11px] text-text-muted">
-                        {l.departmentCode ?? '—'} · {title(l.leaveType)}
+                        {row.departmentCode ?? '—'} · {t(`leaveType.${row.leaveType}`)}
                       </span>
                     </span>
                     <span className="text-[11px] text-text-muted tabular">
-                      {formatDate(l.startDate, 'short')} – {formatDate(l.endDate, 'short')}
+                      {formatDateL(locale, row.startDate, 'short')} – {formatDateL(locale, row.endDate, 'short')}
                     </span>
                   </li>
                 ))}
@@ -363,15 +353,8 @@ export default async function HomePage() {
           </Card>
         </div>
 
-        {!companyWide && (
-          <p className="text-center text-[11px] text-text-subtle">
-            Figures are limited to what your role can see. A director sees the company-wide equivalent of this page.
-          </p>
-        )}
+        {!companyWide && <p className="text-center text-[11px] text-text-subtle">{t('meta.scopeNote')}</p>}
       </div>
     </>
   );
 }
-
-const title = humanize;
-const roleLabel = humanize;

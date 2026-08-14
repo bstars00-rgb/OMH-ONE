@@ -20,6 +20,11 @@ export const forms: MessageTable = {
   'draft.missing': { en: 'Could not determine: {fields}. Fill these in yourself.', ko: '확인하지 못한 항목: {fields}. 직접 입력해 주세요.' },
   'draft.tooShort': { en: 'Describe the request in a sentence or two.', ko: '한두 문장으로 설명해 주세요.' },
   'draft.tooLong': { en: 'That is too long — summarize it in a couple of sentences.', ko: '너무 깁니다. 두어 문장으로 요약해 주세요.' },
+  'draft.note.singleDate': {
+    en: 'Only one date was found — end date set to match. Adjust if the period is longer.',
+    ko: '날짜가 하나만 인식되어 종료일을 같게 설정했습니다. 기간이 더 길면 수정하세요.',
+  },
+  'draft.note.travellers': { en: 'Recognised {names} as additional travellers.', ko: '{names}을(를) 동행자로 인식했습니다.' },
   'draft.failed': {
     en: 'Could not generate a draft. Fill the form manually — nothing else is affected.',
     ko: '초안을 생성하지 못했습니다. 직접 입력해 주세요. 다른 기능에는 영향이 없습니다.',

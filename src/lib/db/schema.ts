@@ -569,6 +569,15 @@ export const aiReviews = pgTable(
     requestId: uuid('request_id')
       .notNull()
       .references(() => requests.id, { onDelete: 'cascade' }),
+    /**
+     * Language the prose was written in.
+     *
+     * The review caches finished sentences, so it is cached per language: a
+     * Korean reader and an English reader each get their own row rather than one
+     * of them being shown the other's language. The underlying findings are
+     * identical — only the phrasing differs.
+     */
+    locale: text('locale').notNull().default('en'),
     provider: text('provider').notNull().default('mock'),
     summary: text('summary').notNull(),
     recommendation: text('recommendation').notNull(), // APPROVE | REVIEW | REJECT
@@ -584,7 +593,7 @@ export const aiReviews = pgTable(
     unhelpfulVotes: integer('unhelpful_votes').notNull().default(0),
     createdAt: createdAt(),
   },
-  (t) => [index('ai_reviews_request_idx').on(t.requestId)],
+  (t) => [index('ai_reviews_request_locale_idx').on(t.requestId, t.locale)],
 );
 
 export const aiConversations = pgTable('ai_conversations', {

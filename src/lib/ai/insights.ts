@@ -1,7 +1,4 @@
 import 'server-only';
-import { formatMoney } from '@/lib/money';
-import { formatDate } from '@/lib/dates';
-import { humanize, plural } from '@/lib/utils';
 import { can } from '@/lib/rbac';
 import type { SessionUser } from '@/lib/auth/session';
 import {
@@ -17,7 +14,7 @@ import {
 import { ready } from '@/lib/db/bootstrap';
 import { sql } from 'drizzle-orm';
 import { visibilitySql } from '@/lib/rbac';
-import type { MorningBrief, ProactiveInsight } from './types';
+import type { AiLocaleContext, MorningBrief, ProactiveInsight } from './types';
 
 /**
  * Proactive insight engine.
@@ -29,7 +26,8 @@ import type { MorningBrief, ProactiveInsight } from './types';
  * Each finding is computed from the same aggregates the dashboard renders, so the
  * brief can never contradict the charts beneath it.
  */
-export async function buildMorningBrief(session: SessionUser): Promise<MorningBrief> {
+export async function buildMorningBrief(session: SessionUser, l: AiLocaleContext): Promise<MorningBrief> {
+  const { t, money } = l;
   const [stats, trend, budgets, bottlenecks, leave, trips, deptSpend] = await Promise.all([
     getDashboardStats(session),
     getApprovalTrend(session, 6),
@@ -47,16 +45,16 @@ export async function buildMorningBrief(session: SessionUser): Promise<MorningBr
     lines.push({
       id: 'overdue',
       severity: 'CRITICAL',
-      title: `${stats.overdueForMe} approval${stats.overdueForMe === 1 ? ' has' : 's have'} passed their SLA`,
-      detail: `Out of ${stats.pendingForMe} waiting on you. These are already late for the requester.`,
+      title: t('brief.overdue.title', { count: stats.overdueForMe }),
+      detail: t('brief.overdue.detail', { total: stats.pendingForMe }),
       href: '/approvals?sort=sla',
     });
   } else if (stats.pendingForMe > 0) {
     lines.push({
       id: 'pending',
       severity: 'INFO',
-      title: `${stats.pendingForMe} approval${stats.pendingForMe === 1 ? '' : 's'} waiting on you`,
-      detail: 'Sorted by risk and SLA, so the most consequential are at the top.',
+      title: t('brief.pending.title', { count: stats.pendingForMe }),
+      detail: t('brief.pending.detail'),
       href: '/approvals',
     });
   }
@@ -69,10 +67,13 @@ export async function buildMorningBrief(session: SessionUser): Promise<MorningBr
       lines.push({
         id: 'spend-move',
         severity: delta > 40 ? 'WARNING' : 'INFO',
-        title: `Approved spend is ${Math.abs(delta)}% ${delta > 0 ? 'above' : 'below'} last month`,
-        detail: `${formatMoney(stats.spendThisMonth)} month to date against ${formatMoney(stats.spendLastMonth)}.${
-          top ? ` Largest contributor: ${top.name} at ${formatMoney(top.value)}.` : ''
-        }`,
+        title: t('brief.spend.title', {
+          pct: Math.abs(delta),
+          direction: delta > 0 ? t('brief.spend.above') : t('brief.spend.below'),
+        }),
+        detail:
+          t('brief.spend.detail', { current: money(stats.spendThisMonth), previous: money(stats.spendLastMonth) }) +
+          (top ? t('brief.spend.topContributor', { name: top.name, amount: money(top.value) }) : ''),
         href: '/analytics',
       });
     }
@@ -87,10 +88,10 @@ export async function buildMorningBrief(session: SessionUser): Promise<MorningBr
       lines.push({
         id: 'travel-volume',
         severity: 'INFO',
-        title: `${tripsThisMonth} trips starting this month`,
+        title: t('brief.travel.title', { count: tripsThisMonth }),
         detail: trips
           .slice(0, 3)
-          .map((t) => `${t.leadName} → ${t.city} (${formatDate(t.startDate, 'short')})`)
+          .map((trip) => `${trip.leadName} → ${trip.city} (${l.date(trip.startDate)})`)
           .join(' · '),
         href: '/travel',
       });
@@ -104,20 +105,25 @@ export async function buildMorningBrief(session: SessionUser): Promise<MorningBr
     lines.push({
       id: `budget-${b.departmentCode}-${b.category}`,
       severity: pct >= 100 ? 'CRITICAL' : 'WARNING',
-      title: `${b.departmentCode} has used ${pct}% of its quarterly ${b.category.toLowerCase()} budget`,
+      title: t('brief.budget.title', {
+        dept: b.departmentCode,
+        pct,
+        category: t(`budgetCategory.${b.category}`),
+      }),
       detail:
         pct >= 100
-          ? `Over by ${formatMoney(Math.abs(b.remaining))}. Further approvals in this category will breach the plan.`
-          : `${formatMoney(b.remaining)} left of ${formatMoney(b.allocated)}.`,
+          ? t('brief.budget.over', { amount: money(Math.abs(b.remaining)) })
+          : t('brief.budget.left', { remaining: money(b.remaining), allocated: money(b.allocated) }),
       href: '/budgets',
     });
   }
 
   /* --- Leave concentration --- */
   const byDept = new Map<string, string[]>();
-  for (const l of leave) {
-    const key = l.departmentCode ?? 'Unassigned';
-    byDept.set(key, [...(byDept.get(key) ?? []), l.employeeName]);
+  // Named `row`, not `l` — `l` is the locale context in this scope.
+  for (const row of leave) {
+    const key = row.departmentCode ?? 'Unassigned';
+    byDept.set(key, [...(byDept.get(key) ?? []), row.employeeName]);
   }
   for (const [dept, names] of byDept) {
     const unique = [...new Set(names)];
@@ -125,8 +131,12 @@ export async function buildMorningBrief(session: SessionUser): Promise<MorningBr
       lines.push({
         id: `leave-${dept}`,
         severity: 'WARNING',
-        title: `${unique.length} people in ${dept} are away in the next 10 days`,
-        detail: `${unique.slice(0, 4).join(', ')}${unique.length > 4 ? ` and ${unique.length - 4} more` : ''}. Check coverage before approving further leave.`,
+        title: t('brief.leave.title', { count: unique.length, dept }),
+        detail: t('brief.leave.detail', {
+          names:
+            unique.slice(0, 4).join(', ') +
+            (unique.length > 4 ? t('brief.leave.andMore', { count: unique.length - 4 }) : ''),
+        }),
         href: '/calendar',
       });
       break;
@@ -139,10 +149,10 @@ export async function buildMorningBrief(session: SessionUser): Promise<MorningBr
     lines.push({
       id: 'bottleneck',
       severity: slowest.avgHours > 48 ? 'WARNING' : 'INFO',
-      title: `${roleLabel(slowest.role)} approvals take ${slowest.avgHours}h on average`,
-      detail: `Across ${slowest.completed} decisions in the last six months${
-        slowest.overdue > 0 ? `, with ${slowest.overdue} currently past SLA` : ''
-      }.`,
+      title: t('brief.bottleneck.title', { role: t(`approverRole.${slowest.role}`), hours: slowest.avgHours }),
+      detail:
+        t('brief.bottleneck.detail', { count: slowest.completed }) +
+        (slowest.overdue > 0 ? t('brief.bottleneck.overdue', { count: slowest.overdue }) : ''),
       href: '/analytics',
     });
   }
@@ -153,8 +163,8 @@ export async function buildMorningBrief(session: SessionUser): Promise<MorningBr
     lines.push({
       id: 'duplicates',
       severity: 'CRITICAL',
-      title: `${plural(dupes, 'expense line')} ${dupes === 1 ? 'matches' : 'match'} a receipt already claimed elsewhere`,
-      detail: 'Same merchant, date and amount on a different claim. Open the claim to see both.',
+      title: t('brief.duplicates.title', { count: dupes }),
+      detail: t('brief.duplicates.detail'),
       href: '/expenses?risk=HIGH',
     });
   }
@@ -164,8 +174,8 @@ export async function buildMorningBrief(session: SessionUser): Promise<MorningBr
     lines.push({
       id: 'returned',
       severity: 'WARNING',
-      title: `${stats.myReturnedRequests} of your requests ${stats.myReturnedRequests === 1 ? 'was' : 'were'} returned`,
-      detail: 'An approver asked for changes. Edit and resubmit to continue.',
+      title: t('brief.returned.title', { count: stats.myReturnedRequests }),
+      detail: t('brief.returned.detail'),
       href: '/requests?status=RETURNED',
     });
   }
@@ -174,8 +184,8 @@ export async function buildMorningBrief(session: SessionUser): Promise<MorningBr
     lines.push({
       id: 'clear',
       severity: 'INFO',
-      title: 'Nothing needs your attention',
-      detail: 'No overdue approvals, budget breaches or unusual activity in your scope.',
+      title: t('brief.clear.title'),
+      detail: t('brief.clear.detail'),
     });
   }
 
@@ -183,7 +193,7 @@ export async function buildMorningBrief(session: SessionUser): Promise<MorningBr
   lines.sort((a, b) => order[a.severity] - order[b.severity]);
 
   return {
-    greeting: greeting(session.name.split(' ')[0]),
+    greeting: greeting(t, session.name.split(' ')[0]),
     pendingCount: stats.pendingForMe,
     lines: lines.slice(0, 5),
     degraded: false,
@@ -212,13 +222,10 @@ async function findDuplicateClaims(session: SessionUser): Promise<number> {
   }
 }
 
-const roleLabel = humanize;
-
-function greeting(firstName: string) {
+function greeting(t: AiLocaleContext['t'], firstName: string) {
   const hour = new Date().getHours();
-  const part = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  return `${part}, ${firstName}`;
+  const key = hour < 12 ? 'brief.greetingMorning' : hour < 18 ? 'brief.greetingAfternoon' : 'brief.greetingEvening';
+  return t(key, { name: firstName });
 }
 
 export type { DashboardStats };
-export { can };

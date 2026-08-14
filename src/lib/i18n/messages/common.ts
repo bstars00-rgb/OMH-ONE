@@ -135,6 +135,14 @@ export const common: MessageTable = {
   'label.anyRisk': { en: 'Any risk', ko: '전체 위험도' },
   'label.anyPriority': { en: 'Any priority', ko: '전체 우선순위' },
 
+  /* --- severity (announced to screen readers, never colour alone) --- */
+  'severity.CRITICAL': { en: 'critical', ko: '긴급' },
+  'severity.WARNING': { en: 'warning', ko: '주의' },
+  'severity.INFO': { en: 'information', ko: '정보' },
+  'severity.PASS': { en: 'passed', ko: '통과' },
+  'severity.WARN': { en: 'warning', ko: '경고' },
+  'severity.FAIL': { en: 'failed', ko: '실패' },
+
   /* --- SLA --- */
   'sla.minutes': { en: '{n}m', ko: '{n}분' },
   'sla.hours': { en: '{n}h', ko: '{n}시간' },

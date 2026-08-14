@@ -19,14 +19,16 @@ import { Badge, Button, Card, CardBody, Input } from '@/components/ui/primitives
 import { RiskBadge } from '@/components/ui/badges';
 import { askCopilotAction, regenerateReviewAction, reviewFeedbackAction } from '@/server/actions/ai';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/client';
 import type { AiCheck, AiComparison, FullReview } from '@/lib/ai/types';
 
+/** Suggestion chips are message keys, so they are asked in the reader's language. */
 const SUGGESTED = [
-  'Why is this expensive?',
-  'Does this breach any policy?',
-  'How much budget remains?',
-  'Compare with previous requests',
-  'Who else is away on these dates?',
+  'ai.suggest.expensive',
+  'ai.suggest.policy',
+  'ai.suggest.budget',
+  'ai.suggest.compare',
+  'ai.suggest.whoElse',
 ];
 
 /**
@@ -47,16 +49,15 @@ export function AiReviewPanel({
   canDecide: boolean;
   liveModel: boolean;
 }) {
+  const t = useT();
+
   if (!review) {
     return (
       <Card>
         <CardBody className="text-center">
           <Sparkles className="mx-auto mb-2 size-5 text-text-subtle" />
-          <p className="text-sm font-medium text-text">AI review not available</p>
-          <p className="mt-1 text-xs text-text-muted">
-            Analysis could not be generated for this request. Approvals are unaffected — you can still decide using the
-            request detail.
-          </p>
+          <p className="text-sm font-medium text-text">{t('ai.unavailableTitle')}</p>
+          <p className="mt-1 text-xs text-text-muted">{t('ai.unavailableBody')}</p>
         </CardBody>
       </Card>
     );
@@ -72,7 +73,7 @@ export function AiReviewPanel({
         <div className="flex items-center justify-between gap-2 border-b border-accent-border/60 px-4 py-2.5">
           <span className="flex items-center gap-1.5 text-[13px] font-semibold text-text">
             <Sparkles className="size-4 text-accent" />
-            AI review
+            {t('ai.review')}
           </span>
           <span className="flex items-center gap-1">
             <RiskBadge risk={review.riskLevel} />
@@ -86,7 +87,7 @@ export function AiReviewPanel({
           {review.degraded && (
             <p className="flex items-start gap-1.5 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
               <AlertTriangle className="mt-px size-3 shrink-0" />
-              The model was unreachable — this analysis was produced by the built-in rules engine.
+              {t('ai.degraded')}
             </p>
           )}
         </CardBody>
@@ -95,11 +96,11 @@ export function AiReviewPanel({
       {/* Checks */}
       <Card>
         <div className="flex items-center justify-between border-b border-border-subtle px-4 py-2.5">
-          <span className="text-[13px] font-semibold text-text">Checks</span>
+          <span className="text-[13px] font-semibold text-text">{t('ai.checks')}</span>
           <span className="flex gap-1">
-            {failing.length > 0 && <Badge tone="rose">{failing.length} failed</Badge>}
-            {warning.length > 0 && <Badge tone="amber">{warning.length} warning</Badge>}
-            {failing.length === 0 && warning.length === 0 && <Badge tone="emerald">All clear</Badge>}
+            {failing.length > 0 && <Badge tone="rose">{t('ai.failedCount', { count: failing.length })}</Badge>}
+            {warning.length > 0 && <Badge tone="amber">{t('ai.warningCount', { count: warning.length })}</Badge>}
+            {failing.length === 0 && warning.length === 0 && <Badge tone="emerald">{t('ai.allClear')}</Badge>}
           </span>
         </div>
         <ul className="divide-y divide-border-subtle">
@@ -113,7 +114,7 @@ export function AiReviewPanel({
       {review.comparisons.length > 0 && (
         <Card>
           <div className="border-b border-border-subtle px-4 py-2.5">
-            <span className="text-[13px] font-semibold text-text">How it compares</span>
+            <span className="text-[13px] font-semibold text-text">{t('ai.comparison')}</span>
           </div>
           <ul className="divide-y divide-border-subtle">
             {review.comparisons.map((c: AiComparison, i) => (
@@ -153,14 +154,15 @@ export function AiReviewPanel({
  */
 function RefreshButton({ requestId }: { requestId: string }) {
   const router = useRouter();
+  const t = useT();
   const [pending, setPending] = React.useState(false);
 
   return (
     <Button
       size="iconSm"
       variant="ghost"
-      aria-label="Re-run this analysis against current data"
-      title="Re-run this analysis against current data"
+      aria-label={t('ai.regenerate')}
+      title={t('ai.regenerate')}
       disabled={pending}
       onClick={async () => {
         setPending(true);
@@ -175,6 +177,7 @@ function RefreshButton({ requestId }: { requestId: string }) {
 }
 
 function CheckRow({ check }: { check: AiCheck }) {
+  const t = useT();
   const icon =
     check.status === 'PASS' ? (
       <CheckCircle2 className="size-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -192,7 +195,8 @@ function CheckRow({ check }: { check: AiCheck }) {
       <div className="min-w-0">
         <p className="text-xs font-medium text-text">
           {check.label}
-          <span className="sr-only"> — {check.status === 'PASS' ? 'passed' : check.status === 'WARN' ? 'warning' : 'failed'}</span>
+          {/* Status is never colour alone — it is announced to screen readers too. */}
+          <span className="sr-only"> — {t(`severity.${check.status}`)}</span>
         </p>
         {check.detail && <p className="mt-0.5 text-[11px] leading-relaxed text-text-muted">{check.detail}</p>}
       </div>
@@ -201,18 +205,18 @@ function CheckRow({ check }: { check: AiCheck }) {
 }
 
 function Recommendation({ review, requestId, liveModel }: { review: FullReview; requestId: string; liveModel: boolean }) {
+  const t = useT();
   const [showWhy, setShowWhy] = React.useState(false);
   const [voted, setVoted] = React.useState<'up' | 'down' | null>(null);
   const [, startTransition] = React.useTransition();
 
-  const tone =
-    review.recommendation === 'APPROVE' ? 'emerald' : review.recommendation === 'REJECT' ? 'rose' : 'amber';
+  const tone = review.recommendation === 'APPROVE' ? 'emerald' : review.recommendation === 'REJECT' ? 'rose' : 'amber';
   const label =
     review.recommendation === 'APPROVE'
-      ? 'Recommend approval'
+      ? t('ai.recommendApprove')
       : review.recommendation === 'REJECT'
-        ? 'Recommend rejection'
-        : 'Needs your review';
+        ? t('ai.recommendReject')
+        : t('ai.recommendReview');
 
   function vote(kind: 'up' | 'down') {
     setVoted(kind);
@@ -227,7 +231,7 @@ function Recommendation({ review, requestId, liveModel }: { review: FullReview; 
             {label}
           </Badge>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-text-muted">Confidence</span>
+            <span className="text-[11px] text-text-muted">{t('ai.confidence')}</span>
             <span className="text-sm font-semibold text-text tabular">{review.confidence}%</span>
           </div>
         </div>
@@ -237,8 +241,7 @@ function Recommendation({ review, requestId, liveModel }: { review: FullReview; 
         </div>
 
         <p className="rounded border border-border-subtle bg-surface-sunken px-2.5 py-2 text-[11px] leading-relaxed text-text-muted">
-          <strong className="font-semibold text-text">This is a recommendation, not a decision.</strong> A person must
-          approve or reject. Nothing here changes the request on its own.
+          {t('ai.notDecision')}
         </p>
 
         <button
@@ -248,7 +251,7 @@ function Recommendation({ review, requestId, liveModel }: { review: FullReview; 
           className="flex w-full items-center justify-between gap-2 text-xs font-medium text-accent hover:underline"
         >
           <span className="flex items-center gap-1.5">
-            <CircleHelp className="size-3.5" /> Why this recommendation?
+            <CircleHelp className="size-3.5" /> {t('ai.why')}
           </span>
           <ChevronDown className={cn('size-3.5 transition-transform', showWhy && 'rotate-180')} />
         </button>
@@ -257,20 +260,20 @@ function Recommendation({ review, requestId, liveModel }: { review: FullReview; 
           <div className="space-y-2 rounded border border-border-subtle bg-surface-sunken p-2.5">
             <p className="text-[11px] leading-relaxed text-text">{review.reasoning}</p>
             <p className="text-[10px] text-text-subtle">
-              Assessed by the {review.provider === 'mock' ? 'built-in rules engine' : 'configured model'} from this
-              request&apos;s own figures: policy thresholds, department budget, historical comparisons and duplicate
-              checks.
-              {!liveModel && ' No external service was called.'}
+              {t('ai.assessedBy', {
+                provider: review.provider === 'mock' ? t('ai.providerRules') : t('ai.providerModel'),
+              })}
+              {!liveModel && t('ai.noExternal')}
             </p>
           </div>
         )}
 
         <div className="flex items-center gap-2 border-t border-border-subtle pt-2.5">
-          <span className="text-[11px] text-text-muted">Was this useful?</span>
+          <span className="text-[11px] text-text-muted">{t('ai.useful')}</span>
           <Button
             size="iconSm"
             variant={voted === 'up' ? 'success' : 'ghost'}
-            aria-label="This review was helpful"
+            aria-label={t('ai.helpful')}
             aria-pressed={voted === 'up'}
             disabled={voted !== null}
             onClick={() => vote('up')}
@@ -280,14 +283,14 @@ function Recommendation({ review, requestId, liveModel }: { review: FullReview; 
           <Button
             size="iconSm"
             variant={voted === 'down' ? 'danger' : 'ghost'}
-            aria-label="This review was not helpful"
+            aria-label={t('ai.notHelpful')}
             aria-pressed={voted === 'down'}
             disabled={voted !== null}
             onClick={() => vote('down')}
           >
             <ThumbsDown />
           </Button>
-          {voted && <span className="text-[11px] text-text-subtle">Thanks — recorded.</span>}
+          {voted && <span className="text-[11px] text-text-subtle">{t('ai.thanks')}</span>}
         </div>
       </CardBody>
     </Card>
@@ -301,6 +304,7 @@ interface Turn {
 }
 
 function Copilot({ requestId }: { requestId: string }) {
+  const t = useT();
   const [question, setQuestion] = React.useState('');
   const [turns, setTurns] = React.useState<Turn[]>([]);
   const [pending, setPending] = React.useState(false);
@@ -314,9 +318,10 @@ function Copilot({ requestId }: { requestId: string }) {
     setQuestion('');
     const result = await askCopilotAction(requestId, trimmed);
     if (result.ok) {
-      setTurns((t) => [...t, { question: trimmed, answer: result.answer, evidence: result.evidence }]);
+      setTurns((prev) => [...prev, { question: trimmed, answer: result.answer, evidence: result.evidence }]);
     } else {
-      setError(result.message);
+      // The action returns a message key, not prose, so it renders in this locale.
+      setError(t(result.message));
     }
     setPending(false);
   }
@@ -325,35 +330,35 @@ function Copilot({ requestId }: { requestId: string }) {
     <Card>
       <div className="border-b border-border-subtle px-4 py-2.5">
         <span className="flex items-center gap-1.5 text-[13px] font-semibold text-text">
-          <Sparkles className="size-4 text-accent" /> Ask about this request
+          <Sparkles className="size-4 text-accent" /> {t('ai.askAbout')}
         </span>
       </div>
 
       <CardBody className="space-y-3 p-4">
         {turns.length === 0 && !pending && (
           <div className="flex flex-wrap gap-1.5">
-            {SUGGESTED.map((s) => (
+            {SUGGESTED.map((key) => (
               <button
-                key={s}
+                key={key}
                 type="button"
-                onClick={() => ask(s)}
+                onClick={() => ask(t(key))}
                 className="rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-[11px] text-text-muted transition-colors hover:border-accent-border hover:bg-accent-soft hover:text-accent"
               >
-                {s}
+                {t(key)}
               </button>
             ))}
           </div>
         )}
 
-        {turns.map((t, i) => (
+        {turns.map((turn, i) => (
           <div key={i} className="space-y-1.5">
-            <p className="text-xs font-medium text-text">{t.question}</p>
+            <p className="text-xs font-medium text-text">{turn.question}</p>
             <p className="rounded-[var(--radius-control)] border border-border-subtle bg-surface-sunken px-2.5 py-2 text-xs leading-relaxed text-text">
-              {t.answer}
+              {turn.answer}
             </p>
-            {t.evidence.length > 0 && (
+            {turn.evidence.length > 0 && (
               <ul className="space-y-0.5 pl-1">
-                {t.evidence.map((e, j) => (
+                {turn.evidence.map((e, j) => (
                   <li key={j} className="text-[11px] text-text-subtle">
                     · {e}
                   </li>
@@ -365,7 +370,7 @@ function Copilot({ requestId }: { requestId: string }) {
 
         {pending && (
           <p className="flex items-center gap-2 text-xs text-text-muted">
-            <Loader2 className="size-3.5 animate-spin" /> Checking the data…
+            <Loader2 className="size-3.5 animate-spin" /> {t('state.thinking')}
           </p>
         )}
 
@@ -385,12 +390,12 @@ function Copilot({ requestId }: { requestId: string }) {
           <Input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ask a question…"
-            aria-label="Ask a question about this request"
+            placeholder={t('ai.askPlaceholder')}
+            aria-label={t('ai.askAria')}
             className="h-8"
             disabled={pending}
           />
-          <Button type="submit" size="icon" variant="primary" aria-label="Send question" disabled={pending || !question.trim()}>
+          <Button type="submit" size="icon" variant="primary" aria-label={t('ai.send')} disabled={pending || !question.trim()}>
             <Send />
           </Button>
         </form>

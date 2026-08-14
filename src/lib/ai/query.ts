@@ -419,7 +419,9 @@ export async function answerQuestion(session: SessionUser, question: string): Pr
 
     case 'MANAGEMENT_SUMMARY': {
       const { buildMorningBrief } = await import('./insights');
-      const brief = await buildMorningBrief(session);
+      const { aiLocale } = await import('./locale-context');
+      const { getLocale } = await import('@/lib/i18n/server');
+      const brief = await buildMorningBrief(session, aiLocale(await getLocale()));
       return {
         intent: parsed.intent,
         summary: `${brief.pendingCount} request${brief.pendingCount === 1 ? '' : 's'} awaiting your decision. ${brief.lines.length} item${brief.lines.length === 1 ? '' : 's'} need attention across ${scopeLabel(session).toLowerCase()}.`,

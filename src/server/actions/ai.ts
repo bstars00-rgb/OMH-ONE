@@ -7,6 +7,8 @@ import { ready } from '@/lib/db/bootstrap';
 import { approvalSteps, requests } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getAIProvider } from '@/lib/ai';
+import { aiLocale } from '@/lib/ai/locale-context';
+import { getLocale } from '@/lib/i18n/server';
 import { buildRequestContext } from '@/lib/ai/context';
 import { getOrCreateReview, recordReviewFeedback } from '@/lib/ai/review';
 
@@ -14,6 +16,7 @@ export interface CopilotResult {
   ok: boolean;
   answer: string;
   evidence: string[];
+  /** i18n key, resolved by the client in the active locale. */
   message: string;
 }
 
@@ -48,21 +51,22 @@ async function assertCanSee(requestId: string) {
 export async function askCopilotAction(requestId: string, question: string): Promise<CopilotResult> {
   const fail = (message: string): CopilotResult => ({ ok: false, answer: '', evidence: [], message });
 
-  if (!question.trim()) return fail('Enter a question.');
-  if (question.length > 500) return fail('Question is too long.');
+  if (!question.trim()) return fail('assist.getStarted');
+  if (question.length > 500) return fail('assist.tooLong');
 
   try {
     const session = await assertCanSee(requestId);
-    if (!session) return fail('You do not have access to this request.');
+    if (!session) return fail('error.noAccessRequest');
 
     const ctx = await buildRequestContext(requestId);
-    if (!ctx) return fail('Request not found.');
+    if (!ctx) return fail('error.notFound.title');
 
-    const answer = await getAIProvider().answerRequestQuestion(question, ctx);
+    const l = aiLocale(await getLocale());
+    const answer = await getAIProvider().answerRequestQuestion(question, ctx, l);
     return { ok: true, answer: answer.answer, evidence: answer.evidence, message: '' };
   } catch (err) {
     console.error('[ai] copilot failed', err);
-    return fail('AI is temporarily unavailable. Approvals and all other functions are unaffected.');
+    return fail('error.ai.body');
   }
 }
 
@@ -80,12 +84,12 @@ export async function reviewFeedbackAction(requestId: string, helpful: boolean) 
 export async function regenerateReviewAction(requestId: string) {
   try {
     const session = await assertCanSee(requestId);
-    if (!session) return { ok: false, message: 'You do not have access to this request.' };
+    if (!session) return { ok: false, message: 'error.noAccessRequest' };
     await getOrCreateReview(requestId, { force: true });
     revalidatePath(`/requests/${requestId}`);
-    return { ok: true, message: 'Analysis refreshed.' };
+    return { ok: true, message: 'ai.refreshed' };
   } catch (err) {
     console.error('[ai] regenerate failed', err);
-    return { ok: false, message: 'Could not refresh the analysis.' };
+    return { ok: false, message: 'ai.refreshFailed' };
   }
 }

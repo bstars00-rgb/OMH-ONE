@@ -1,7 +1,10 @@
+'use client';
+
 import * as React from 'react';
 import Link from 'next/link';
 import { AlertTriangle, ArrowRight, CircleAlert, Info, Sparkles } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/primitives';
+import { useT } from '@/lib/i18n/client';
 import { cn } from '@/lib/utils';
 import type { MorningBrief } from '@/lib/ai/types';
 
@@ -12,28 +15,27 @@ const SEVERITY = {
 };
 
 export function MorningBriefCard({ brief, liveModel }: { brief: MorningBrief; liveModel: boolean }) {
+  const t = useT();
   return (
     <section className="rounded-[var(--radius-card)] border border-accent-border bg-accent-soft/40 p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-accent uppercase">
-            <Sparkles className="size-3.5" /> AI brief
+            <Sparkles className="size-3.5" /> {t('brief.label')}
           </p>
           <h2 className="mt-1 text-lg font-semibold tracking-tight text-text">{brief.greeting}</h2>
           <p className="mt-0.5 text-sm text-text-muted">
-            {brief.pendingCount > 0
-              ? `${brief.pendingCount} request${brief.pendingCount === 1 ? '' : 's'} waiting for your review.`
-              : 'Nothing is waiting for your review.'}
+            {brief.pendingCount > 0 ? t('brief.waiting', { count: brief.pendingCount }) : t('brief.nothingWaiting')}
           </p>
         </div>
         <div className="flex gap-2">
           {brief.pendingCount > 0 && (
             <Link href="/approvals" className={buttonVariants({ variant: 'primary', size: 'sm' })}>
-              Review approvals <ArrowRight />
+              {t('brief.reviewApprovals')} <ArrowRight />
             </Link>
           )}
           <Link href="/assistant" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
-            <Sparkles /> Ask AI
+            <Sparkles /> {t('brief.askAi')}
           </Link>
         </div>
       </div>
@@ -48,7 +50,7 @@ export function MorningBriefCard({ brief, liveModel }: { brief: MorningBrief; li
               <span className="min-w-0">
                 <span className="block text-[13px] font-medium text-text">
                   {line.title}
-                  <span className="sr-only"> — {line.severity.toLowerCase()}</span>
+                  <span className="sr-only"> — {t(`severity.${line.severity}`)}</span>
                 </span>
                 <span className="mt-0.5 block text-xs leading-relaxed text-text-muted">{line.detail}</span>
               </span>
@@ -74,8 +76,7 @@ export function MorningBriefCard({ brief, liveModel }: { brief: MorningBrief; li
       </ul>
 
       <p className="mt-3 border-t border-accent-border/60 pt-2.5 text-[10px] text-text-subtle">
-        Generated from your visible data by the {liveModel ? 'configured model' : 'built-in rules engine'}. Findings are
-        computed from live records — nothing here is an estimate.
+        {t('brief.footnote', { provider: liveModel ? t('ai.providerModel') : t('ai.providerRules') })}
       </p>
     </section>
   );

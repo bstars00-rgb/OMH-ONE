@@ -5,6 +5,7 @@ import { pages } from './messages/pages';
 import { forms } from './messages/forms';
 import { admin } from './messages/admin';
 import { ai } from './messages/ai';
+import { aiFindings } from './messages/ai-findings';
 import { DEFAULT_LOCALE, type Locale, type MessageEntry, type Vars } from './types';
 
 /**
@@ -23,6 +24,7 @@ export const MESSAGES = {
   ...forms,
   ...admin,
   ...ai,
+  ...aiFindings,
 } as const;
 
 export type MessageKey = keyof typeof MESSAGES;
