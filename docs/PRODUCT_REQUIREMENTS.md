@@ -1,6 +1,9 @@
-# OHMY AI ERP — Product Requirements
+# OHMY ONE — Product Requirements
 
-> One place to request, approve, analyze and operate.
+> One company. One system. AI-powered.
+
+Platform: **OHMY ONE**. Modules: ONE Approval (결재) · ONE People (인사·연차) · ONE Travel (출장) ·
+ONE Expense (경비) · ONE Purchase (구매) · ONE Finance (회계, 예정) · ONE AI (어시스턴트).
 
 ## 1. Problem
 
@@ -25,7 +28,7 @@ OHMY currently runs approvals through Microsoft Teams Approval. It works as a me
 
 Conventional ERP is `Input → Save → Search`.
 
-OHMY AI ERP is:
+OHMY ONE is:
 
 ```
 Input → AI Understand → AI Validate → AI Recommend → Approval → AI Analyze → Management Insight
@@ -51,6 +54,9 @@ The user enters the minimum. The system does the structuring, the checking and t
 | Analytics | Home dashboard, executive view, spend / approval / leave / travel / procurement analysis, SLA and bottleneck |
 | Admin | Workflow builder, policy engine, users and roles, organization, system settings |
 | Reports | 10 preset reports, CSV export |
+| Language | Full English and Korean across every screen, form, validation message, AI finding and workflow outcome. Switchable from the header or the login screen; the choice persists per user. |
+| Multi-office | Each office (본사 / 지사) is a tenant boundary. Staff see their own office only; C-level, Finance, Admin and Auditor see the group consolidated and can switch to a single office. |
+| Named approval chains | A workflow step routes either by role (resolved per request from the org chart) or to a specific named person, so a fixed chain such as 폴 → 비키 → 에이든 → CTO → CEO is configurable without a developer. |
 
 ### Explicitly out of scope
 
@@ -77,6 +83,14 @@ Accounting / AP / AR, invoicing, contract management, asset register, payroll, a
 | Admin | Change rules without a developer | Edits a workflow or policy in the UI |
 | Auditor | Verify what happened | Read-only access to every action with actor and timestamp |
 
+**Language.** Every role works in English or Korean. This is not a convenience layer: Korean staff read
+policy findings, validation errors and approval outcomes in Korean, and the same request read by a
+Korean approver and an English one shows identical figures with different prose.
+
+**Office scope.** A Vietnam manager cannot browse Korea's requests. Group reporting and group
+accounting are the reason the consolidated roles exist — scoping Finance to one office would make
+closing the books impossible.
+
 ## 5. Critical flows
 
 All five must work against the database, survive a browser reload, and update every downstream view.
@@ -98,6 +112,7 @@ All five must work against the database, survive a browser reload, and update ev
 | Large tables | Server-side filter, sort and pagination |
 | Accessibility | Keyboard navigable, labelled controls, status never conveyed by colour alone |
 | Responsive | Desktop-first (1440+), usable to 375px |
+| Localization | Every user-visible string resolves through the dictionary. A message present in only one language is a compile error, not a runtime fallback. |
 | Build health | 0 TypeScript errors, 0 lint errors, 0 build errors |
 
 ## 7. Acceptance

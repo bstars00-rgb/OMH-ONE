@@ -51,6 +51,22 @@ If every step collapses away — the Director filing their own request — a sin
 | `HR` | HR Manager |
 | `FINANCE` | Finance Manager |
 | `DIRECTOR` | Managing Director |
+| `CTO` | Executive holder designated in system settings (`approver.CTO`) |
+| `CEO` | Executive holder designated in system settings (`approver.CEO`) |
+
+### Role step vs named step
+
+A step resolves its approver one of two ways:
+
+| Mode | Stored as | Resolved |
+|---|---|---|
+| By role | `approver_role`, `approver_employee_id` null | Per request, from the requester's own org chart |
+| Named person | `approver_employee_id` set | Exactly that person; the role becomes a label only |
+
+A named approver is what makes a fixed chain such as 폴 → 비키 → 에이든 → CTO → CEO expressible. A
+role step is what makes one workflow serve thirty employees with thirty different managers. Both are
+configured in the workflow builder without a developer, and both are subject to the three
+normalization rules below.
 
 ## Seeded routes
 

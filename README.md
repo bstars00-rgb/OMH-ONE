@@ -1,4 +1,4 @@
-# OHMY AI ERP
+# OHMY ONE
 
 **One place to request, approve, analyze and operate.**
 

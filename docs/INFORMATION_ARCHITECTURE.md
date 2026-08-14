@@ -3,7 +3,7 @@
 ## Navigation
 
 ```
-OHMY AI ERP
+OHMY ONE
 │
 ├─ MAIN
 │  ├─ Home                    /                  Dashboard, AI morning brief, "needs your attention"
