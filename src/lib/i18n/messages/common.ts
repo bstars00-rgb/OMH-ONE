@@ -135,6 +135,15 @@ export const common: MessageTable = {
   'label.anyRisk': { en: 'Any risk', ko: '전체 위험도' },
   'label.anyPriority': { en: 'Any priority', ko: '전체 우선순위' },
 
+  /* --- SLA --- */
+  'sla.minutes': { en: '{n}m', ko: '{n}분' },
+  'sla.hours': { en: '{n}h', ko: '{n}시간' },
+  'sla.days': { en: '{n}d', ko: '{n}일' },
+  'sla.left': { en: '{span} left', ko: '{span} 남음' },
+  'sla.over': { en: '{span} over', ko: '{span} 초과' },
+  'sla.expiresIn': { en: 'SLA expires in {span}', ko: '처리 기한 {span} 남음' },
+  'sla.passedAgo': { en: 'SLA passed {span} ago', ko: '처리 기한 {span} 지남' },
+
   /* --- table & pagination --- */
   'table.of': { en: 'of', ko: '/' },
   'table.previousPage': { en: 'Previous page', ko: '이전 페이지' },

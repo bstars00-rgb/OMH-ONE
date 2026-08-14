@@ -14,7 +14,9 @@ import {
   notifications,
   purchaseRequests,
   requests,
+  systemSettings,
 } from '@/lib/db/schema';
+import { EXECUTIVE_SETTING_KEYS } from '@/types/domain';
 import {
   canTransition,
   materializeSteps,
@@ -98,7 +100,34 @@ async function approverDirectory(tx: Tx, requesterId: string) {
     return row?.id ?? null;
   };
 
-  const [hrId, financeId, directorId] = await Promise.all([roleHolder('HR'), roleHolder('FIN'), roleHolder('CEO')]);
+  /**
+   * Executives have no department head to derive from, so the holder of each is
+   * designated in system settings and edited in Admin → Settings. Replacing the
+   * person re-routes every future request without editing a single workflow.
+   * Falls back to the CEO-office head so a fresh database still routes.
+   */
+  const executive = async (role: 'DIRECTOR' | 'CTO' | 'CEO') => {
+    const key = EXECUTIVE_SETTING_KEYS[role];
+    if (!key) return null;
+    const [row] = await tx.select({ value: systemSettings.value }).from(systemSettings).where(eq(systemSettings.key, key)).limit(1);
+    const code = typeof row?.value === 'string' ? row.value : null;
+    if (!code) return null;
+    const [emp] = await tx
+      .select({ id: employees.id })
+      .from(employees)
+      .where(and(eq(employees.employeeCode, code), eq(employees.status, 'ACTIVE')))
+      .limit(1);
+    return emp?.id ?? null;
+  };
+
+  const [hrId, financeId, ceoOfficeHead, directorSetting, ctoSetting, ceoSetting] = await Promise.all([
+    roleHolder('HR'),
+    roleHolder('FIN'),
+    roleHolder('CEO'),
+    executive('DIRECTOR'),
+    executive('CTO'),
+    executive('CEO'),
+  ]);
 
   return {
     requesterId,
@@ -106,7 +135,9 @@ async function approverDirectory(tx: Tx, requesterId: string) {
     deptHeadId: dept?.head ?? null,
     hrId,
     financeId,
-    directorId,
+    directorId: directorSetting ?? ceoOfficeHead,
+    ctoId: ctoSetting,
+    ceoId: ceoSetting ?? ceoOfficeHead,
   };
 }
 

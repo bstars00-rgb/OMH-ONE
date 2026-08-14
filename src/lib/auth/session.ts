@@ -16,8 +16,18 @@ export interface SessionUser {
   roles: Role[];
   departmentId: string | null;
   departmentCode: string | null;
+  /** The office this person belongs to — their tenant. */
   officeId: string | null;
   position: string | null;
+  /**
+   * Office the session is currently looking at.
+   *
+   * For most people this equals `officeId` and cannot be changed. Roles with
+   * consolidated visibility (executives, Finance, admins, auditors) may narrow to
+   * a single office; `null` for them means "all offices". Resolved per request in
+   * `requireLiveSession`, never trusted from the cookie alone.
+   */
+  activeOfficeId?: string | null;
 }
 
 function secret() {

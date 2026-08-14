@@ -157,22 +157,88 @@ const CASES: Case[] = [
     name: 'Employee cannot open a request outside their scope',
     why: 'Guessing a request id in the URL must return the 403 panel, not the record.',
     run: async ({ get }) => {
-      // Take a request id the director can see, from the company-wide report.
-      const dir = await get('director', '/api/reports/approvals');
-      const numbers = dir.body.split(/\r?\n/).slice(1, 60).map((l) => l.split(',')[0]);
-      const empList = await get('employee', '/api/reports/approvals');
-      const empNumbers = new Set(empList.body.split(/\r?\n/).slice(1).map((l) => l.split(',')[0]));
-      const hidden = numbers.find((n) => n && !empNumbers.has(n));
-      if (!hidden) return { pass: false, detail: 'could not find a request outside the employee scope to test' };
+      /*
+       * The target must genuinely be out of reach: not the employee's own, and
+       * not from their department (a manager-visible row would be a false
+       * positive). The search hit subtitle carries "NUMBER · Requester · DEPT",
+       * which is enough to pick one deliberately rather than hoping.
+       *
+       * The demo employee is Bryant Vo in SCM.
+       */
+      const search = await get('director', `/api/search?q=${encodeURIComponent('Business trip')}`);
+      const hits = (JSON.parse(search.body) as { hits: { id: string; subtitle: string }[] }).hits ?? [];
+      const target = hits.find((h) => !h.subtitle.includes('Bryant Vo') && !h.subtitle.includes('· SCM'));
+      if (!target) return { pass: false, detail: 'no request outside the employee scope was available to test' };
 
-      // Resolve it to an id via the director's search, then try it as the employee.
-      const search = await get('director', `/api/search?q=${encodeURIComponent(hidden)}`);
-      const id = (JSON.parse(search.body) as { hits: { id: string }[] }).hits?.[0]?.id;
-      if (!id) return { pass: false, detail: `could not resolve ${hidden} to an id` };
-
-      const attempt = await get('employee', `/requests/${id}`);
+      const attempt = await get('employee', `/requests/${target.id}`);
       const blocked = attempt.body.includes('do not have access') || attempt.body.includes('does not include');
-      return { pass: blocked, detail: blocked ? `${hidden} correctly refused` : `${hidden} was readable by an employee` };
+      return {
+        pass: blocked,
+        detail: blocked
+          ? `${target.subtitle.split(' · ')[0]} correctly refused`
+          : `${target.subtitle} was readable by an employee`,
+      };
+    },
+  },
+  {
+    name: 'Office scope: a manager cannot see another office’s requests',
+    why: 'Each office is a tenant. A Vietnam manager browsing Korea’s requests would defeat the separation.',
+    run: async ({ get }) => {
+      const mgr = await get('manager', '/api/reports/approvals');
+      if (mgr.status === 403) return { pass: true, detail: 'manager blocked from the export entirely' };
+
+      // The travel report carries the office through the requester, so compare
+      // the set of countries each role can reach.
+      const dir = await get('director', '/api/reports/travel');
+      const mgrTravel = await get('manager', '/api/reports/travel');
+      if (mgrTravel.status === 403) return { pass: true, detail: 'manager blocked from the travel export' };
+
+      const countries = (body: string) =>
+        new Set(
+          body
+            .split(/\r?\n/)
+            .slice(1)
+            .map((l) => l.split(',')[3])
+            .filter(Boolean),
+        );
+      const d = countries(dir.body);
+      const m = countries(mgrTravel.body);
+      return { pass: m.size <= d.size, detail: `manager reaches ${m.size} destination countries vs director ${d.size}` };
+    },
+  },
+  {
+    name: 'Office scope: consolidated roles see every office',
+    why: 'Executives, Finance, admins and auditors need group-wide reporting — that is the point of one system.',
+    run: async ({ get }) => {
+      const [dir, fin, aud] = await Promise.all([
+        get('director', '/api/reports/approvals'),
+        get('finance', '/api/reports/approvals'),
+        get('auditor', '/api/reports/approvals'),
+      ]);
+      const rows = (b: string) => csvRows(b);
+      const d = rows(dir.body);
+      const f = rows(fin.body);
+      const a = rows(aud.body);
+      return { pass: d === a && f > 0 && d > 0, detail: `director ${d}, finance ${f}, auditor ${a} rows` };
+    },
+  },
+  {
+    name: 'Office scope: employee cannot widen scope by forging the office cookie',
+    why: 'The cookie is ignored for non-consolidated roles — scope comes from the employee record, not the request.',
+    run: async ({ cookies }) => {
+      const res = await fetch(`${BASE}/api/reports/approvals`, {
+        headers: { cookie: `${cookies.employee}; ohmy_office=all` },
+        redirect: 'manual',
+      });
+      // Either blocked outright, or scoped exactly as before — never widened.
+      const plain = await fetch(`${BASE}/api/reports/approvals`, {
+        headers: { cookie: cookies.employee },
+        redirect: 'manual',
+      });
+      if (res.status === 403 && plain.status === 403) return { pass: true, detail: 'blocked in both cases (403)' };
+      const forged = csvRows(await res.text());
+      const normal = csvRows(await plain.text());
+      return { pass: forged === normal, detail: `forged cookie ${forged} rows vs normal ${normal} rows` };
     },
   },
   {

@@ -8,6 +8,8 @@ import * as Icons from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isActive, type NavSection } from '@/lib/nav';
 import { Button } from '@/components/ui/primitives';
+import { useT } from '@/lib/i18n/client';
+import { BRAND } from '@/lib/brand';
 
 function NavIcon({ name }: { name: string }) {
   const Cmp = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[name];
@@ -16,13 +18,14 @@ function NavIcon({ name }: { name: string }) {
 
 export function SidebarNav({ sections, onNavigate }: { sections: NavSection[]; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const t = useT();
 
   return (
-    <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4" aria-label="Main">
+    <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4" aria-label={t('nav.main')}>
       {sections.map((section) => (
-        <div key={section.label}>
+        <div key={section.labelKey}>
           <p className="px-2 pb-1.5 text-[10px] font-semibold tracking-wider text-text-subtle uppercase">
-            {section.label}
+            {t(section.labelKey)}
           </p>
           <ul className="space-y-0.5">
             {section.items.map((item) => {
@@ -41,7 +44,7 @@ export function SidebarNav({ sections, onNavigate }: { sections: NavSection[]; o
                     )}
                   >
                     <NavIcon name={item.icon} />
-                    <span className="truncate">{item.label}</span>
+                    <span className="truncate">{t(item.labelKey)}</span>
                   </Link>
                 </li>
               );
@@ -56,6 +59,7 @@ export function SidebarNav({ sections, onNavigate }: { sections: NavSection[]; o
 /** Mobile navigation. Below `lg` the sidebar is a sheet behind a menu button. */
 export function MobileNav({ sections }: { sections: NavSection[] }) {
   const [open, setOpen] = React.useState(false);
+  const t = useT();
 
   // Closing on navigation is handled by SidebarNav's onNavigate callback rather
   // than by watching the pathname — the click already knows it is navigating.
@@ -79,7 +83,7 @@ export function MobileNav({ sections }: { sections: NavSection[] }) {
         variant="ghost"
         size="icon"
         className="lg:hidden"
-        aria-label="Open navigation"
+        aria-label={t('nav.openMenu')}
         aria-expanded={open}
         onClick={() => setOpen(true)}
       >
@@ -90,7 +94,7 @@ export function MobileNav({ sections }: { sections: NavSection[] }) {
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            aria-label="Close navigation"
+            aria-label={t('nav.closeMenu')}
             className="absolute inset-0 bg-zinc-950/50"
             onClick={() => setOpen(false)}
           />
@@ -98,11 +102,11 @@ export function MobileNav({ sections }: { sections: NavSection[] }) {
             <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
               <span className="flex items-center gap-2 text-sm font-semibold text-text">
                 <span className="flex size-6 items-center justify-center rounded bg-accent text-xs font-bold text-accent-fg">
-                  O
+                  {BRAND.mark}
                 </span>
-                OHMY AI ERP
+                {BRAND.name}
               </span>
-              <Button variant="ghost" size="iconSm" aria-label="Close navigation" onClick={() => setOpen(false)}>
+              <Button variant="ghost" size="iconSm" aria-label={t('nav.closeMenu')} onClick={() => setOpen(false)}>
                 <Icons.X />
               </Button>
             </div>

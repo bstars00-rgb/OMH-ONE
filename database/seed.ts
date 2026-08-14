@@ -364,6 +364,7 @@ export async function seed(db: Database) {
   const DIRECTOR = 'E001';
   const HR_APPROVER = 'E070';
   const FINANCE_APPROVER = 'E060';
+  const CTO = 'E050';
 
   const counters = new Map<string, number>();
   function nextNumber(type: keyof typeof REQUEST_TYPE_META) {
@@ -452,6 +453,8 @@ export async function seed(db: Database) {
         hrId: HR_APPROVER,
         financeId: FINANCE_APPROVER,
         directorId: DIRECTOR,
+        ctoId: CTO,
+        ceoId: DIRECTOR,
       },
     );
 
@@ -603,6 +606,8 @@ export async function seed(db: Database) {
       description: a.description,
       requesterId: empIds.get(a.requesterCode)!,
       departmentId: deptIds.get(requester.department)!,
+      // The office that filed the request — the tenant boundary.
+      officeId: officeIds.get(requester.office)!,
       costCenterId: ccIds.get(`CC-${requester.department}`)!,
       status,
       priority,
@@ -1345,6 +1350,12 @@ export async function seed(db: Database) {
     { key: 'approval.defaultSlaHours', value: 24, description: 'Fallback SLA when a workflow step does not specify one.' },
     { key: 'ai.enabled', value: true, description: 'Master switch for AI features.' },
     { key: 'demo.mode', value: true, description: 'Marks this dataset as prototype demo data.' },
+    // Executives have no department head to derive from. Designating them here
+    // means replacing the person re-routes every future request without editing
+    // a single workflow. Values are employee codes.
+    { key: 'approver.CEO', value: 'E001', description: 'Employee code approving CEO workflow steps.' },
+    { key: 'approver.CTO', value: 'E050', description: 'Employee code approving CTO workflow steps.' },
+    { key: 'approver.DIRECTOR', value: 'E001', description: 'Employee code approving Director workflow steps.' },
   ]);
 
   log(`comments ${commentRows.length}, notifications ${notificationRows.length}, audit ${auditRows.length}`);

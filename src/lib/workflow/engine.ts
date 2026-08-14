@@ -15,6 +15,8 @@ export interface WorkflowStepTemplate {
   stepOrder: number;
   name: string;
   approverRole: string;
+  /** Fixed approver. When set, the role is only a label. */
+  approverEmployeeId?: string | null;
   slaHours: number;
   conditionType: string;
   conditionValue: string | number | null;
@@ -38,6 +40,9 @@ export interface ApproverDirectory {
   hrId: string | null;
   financeId: string | null;
   directorId: string | null;
+  /** Executive holders, designated in system settings. */
+  ctoId: string | null;
+  ceoId: string | null;
 }
 
 export interface MaterializedStep {
@@ -79,6 +84,10 @@ function resolveApprover(role: string, dir: ApproverDirectory): string | null {
       return dir.financeId;
     case 'DIRECTOR':
       return dir.directorId;
+    case 'CTO':
+      return dir.ctoId;
+    case 'CEO':
+      return dir.ceoId;
     default:
       return null;
   }
@@ -106,7 +115,8 @@ export function materializeSteps(
   for (const t of [...templates].sort((a, b) => a.stepOrder - b.stepOrder)) {
     if (!conditionHolds(t, facts)) continue;
 
-    const approverId = resolveApprover(t.approverRole, dir);
+    // A named approver takes precedence; the role is then only a label.
+    const approverId = t.approverEmployeeId ?? resolveApprover(t.approverRole, dir);
     if (!approverId) continue;
     if (approverId === dir.requesterId) continue;
     if (out.length && out[out.length - 1].approverId === approverId) continue;

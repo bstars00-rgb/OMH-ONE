@@ -86,6 +86,9 @@ async function insertBase(tx: Tx, session: SessionUser, args: BaseArgs) {
     description: args.description,
     requesterId: session.employeeId,
     departmentId: ctx.departmentId,
+    // Stamped from the requester's office at creation — the request belongs to
+    // the office that filed it, even if the person later transfers.
+    officeId: ctx.officeId,
     costCenterId: ctx.costCenterId,
     status: 'DRAFT',
     priority: 'NORMAL',

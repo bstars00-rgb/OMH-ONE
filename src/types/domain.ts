@@ -32,8 +32,25 @@ export const ROLES = [
 ] as const;
 export type Role = (typeof ROLES)[number];
 
-export const APPROVER_ROLES = ['MANAGER', 'DEPT_HEAD', 'HR', 'FINANCE', 'DIRECTOR'] as const;
+/**
+ * Roles a workflow step can route to, resolved per request from the org chart.
+ * A step may instead name a specific person (`approverEmployeeId`), which is how
+ * a fixed chain like Paul → Vicky → Aiden → CTO → CEO is expressed.
+ */
+export const APPROVER_ROLES = ['MANAGER', 'DEPT_HEAD', 'HR', 'FINANCE', 'DIRECTOR', 'CTO', 'CEO'] as const;
 export type ApproverRole = (typeof APPROVER_ROLES)[number];
+
+/**
+ * Executive roles have no department of their own to derive a head from, so the
+ * person holding each is designated in `system_settings` under these keys and
+ * edited in Admin → Settings. Changing the holder re-routes future requests
+ * without touching any workflow.
+ */
+export const EXECUTIVE_SETTING_KEYS: Partial<Record<ApproverRole, string>> = {
+  CEO: 'approver.CEO',
+  CTO: 'approver.CTO',
+  DIRECTOR: 'approver.DIRECTOR',
+};
 
 export const LEAVE_TYPES = ['ANNUAL', 'SICK', 'UNPAID', 'SPECIAL', 'OTHER'] as const;
 export type LeaveType = (typeof LEAVE_TYPES)[number];

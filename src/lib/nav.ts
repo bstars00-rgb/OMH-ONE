@@ -1,7 +1,8 @@
 import type { Capability } from '@/lib/rbac';
 
 export interface NavItem {
-  label: string;
+  /** i18n key — the label is resolved at render so the nav follows the locale. */
+  labelKey: string;
   href: string;
   icon: string;
   capability?: Capability;
@@ -10,7 +11,7 @@ export interface NavItem {
 }
 
 export interface NavSection {
-  label: string;
+  labelKey: string;
   items: NavItem[];
 }
 
@@ -21,55 +22,55 @@ export interface NavSection {
  */
 export const NAV: NavSection[] = [
   {
-    label: 'Main',
+    labelKey: 'nav.section.main',
     items: [
-      { label: 'Home', href: '/', icon: 'LayoutDashboard' },
-      { label: 'AI Assistant', href: '/assistant', icon: 'Sparkles' },
+      { labelKey: 'nav.home', href: '/', icon: 'LayoutDashboard' },
+      { labelKey: 'nav.assistant', href: '/assistant', icon: 'Sparkles' },
     ],
   },
   {
-    label: 'Work',
+    labelKey: 'nav.section.work',
     items: [
-      { label: 'Approvals', href: '/approvals', icon: 'Inbox', matchPrefix: true },
-      { label: 'My Requests', href: '/requests', icon: 'FileText', matchPrefix: true },
+      { labelKey: 'nav.approvals', href: '/approvals', icon: 'Inbox', matchPrefix: true },
+      { labelKey: 'nav.requests', href: '/requests', icon: 'FileText', matchPrefix: true },
     ],
   },
   {
-    label: 'People',
+    labelKey: 'nav.section.people',
     items: [
-      { label: 'Employees', href: '/people', icon: 'Users', capability: 'employee.viewAll', matchPrefix: true },
-      { label: 'Leave', href: '/leave', icon: 'CalendarDays', matchPrefix: true },
-      { label: 'Calendar', href: '/calendar', icon: 'CalendarRange' },
+      { labelKey: 'nav.people', href: '/people', icon: 'Users', capability: 'employee.viewAll', matchPrefix: true },
+      { labelKey: 'nav.leave', href: '/leave', icon: 'CalendarDays', matchPrefix: true },
+      { labelKey: 'nav.calendar', href: '/calendar', icon: 'CalendarRange' },
     ],
   },
   {
-    label: 'Finance',
+    labelKey: 'nav.section.finance',
     items: [
-      { label: 'Expenses', href: '/expenses', icon: 'Receipt', matchPrefix: true },
-      { label: 'Purchase Requests', href: '/procurement', icon: 'ShoppingCart', matchPrefix: true },
-      { label: 'Budgets', href: '/budgets', icon: 'Wallet', capability: 'finance.view' },
+      { labelKey: 'nav.expenses', href: '/expenses', icon: 'Receipt', matchPrefix: true },
+      { labelKey: 'nav.procurement', href: '/procurement', icon: 'ShoppingCart', matchPrefix: true },
+      { labelKey: 'nav.budgets', href: '/budgets', icon: 'Wallet', capability: 'finance.view' },
     ],
   },
   {
-    label: 'Travel',
-    items: [{ label: 'Business Trips', href: '/travel', icon: 'Plane', matchPrefix: true }],
+    labelKey: 'nav.section.travel',
+    items: [{ labelKey: 'nav.travel', href: '/travel', icon: 'Plane', matchPrefix: true }],
   },
   {
-    label: 'Management',
+    labelKey: 'nav.section.management',
     items: [
-      { label: 'Analytics', href: '/analytics', icon: 'ChartColumn', capability: 'analytics.view' },
-      { label: 'Reports', href: '/reports', icon: 'FileSpreadsheet', capability: 'reports.export' },
-      { label: 'Audit Logs', href: '/audit', icon: 'ScrollText', capability: 'audit.view' },
+      { labelKey: 'nav.analytics', href: '/analytics', icon: 'ChartColumn', capability: 'analytics.view' },
+      { labelKey: 'nav.reports', href: '/reports', icon: 'FileSpreadsheet', capability: 'reports.export' },
+      { labelKey: 'nav.audit', href: '/audit', icon: 'ScrollText', capability: 'audit.view' },
     ],
   },
   {
-    label: 'Admin',
+    labelKey: 'nav.section.admin',
     items: [
-      { label: 'Workflow Builder', href: '/admin/workflows', icon: 'GitBranch', capability: 'admin.workflow', matchPrefix: true },
-      { label: 'Policies', href: '/admin/policies', icon: 'ShieldCheck', capability: 'admin.policy' },
-      { label: 'Organization', href: '/admin/organization', icon: 'Building2', capability: 'admin.organization' },
-      { label: 'Users', href: '/admin/users', icon: 'UserCog', capability: 'admin.users' },
-      { label: 'System Settings', href: '/admin/settings', icon: 'Settings', capability: 'admin.settings' },
+      { labelKey: 'nav.admin.workflows', href: '/admin/workflows', icon: 'GitBranch', capability: 'admin.workflow', matchPrefix: true },
+      { labelKey: 'nav.admin.policies', href: '/admin/policies', icon: 'ShieldCheck', capability: 'admin.policy' },
+      { labelKey: 'nav.admin.organization', href: '/admin/organization', icon: 'Building2', capability: 'admin.organization' },
+      { labelKey: 'nav.admin.users', href: '/admin/users', icon: 'UserCog', capability: 'admin.users' },
+      { labelKey: 'nav.admin.settings', href: '/admin/settings', icon: 'Settings', capability: 'admin.settings' },
     ],
   },
 ];

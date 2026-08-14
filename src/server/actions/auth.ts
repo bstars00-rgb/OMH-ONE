@@ -10,6 +10,7 @@ import { recordAudit } from '@/server/audit';
 import type { Role } from '@/types/domain';
 
 export interface LoginState {
+  /** i18n message key, not prose — the form renders it in the active locale. */
   error?: string;
 }
 
@@ -19,7 +20,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     .toLowerCase();
   const password = String(formData.get('password') ?? '');
 
-  if (!email || !password) return { error: 'Enter your email and password.' };
+  if (!email || !password) return { error: 'login.errorEmpty' };
 
   const db = await ready();
 
@@ -46,7 +47,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
 
   // Same message whether the account is missing, disabled or the password is
   // wrong — a login form should not confirm which emails exist.
-  const GENERIC = 'Email or password is incorrect.';
+  const GENERIC = 'login.error';
 
   if (!row) {
     await recordAudit(db, { action: 'LOGIN_FAILED', entityType: 'session', actorEmail: email, summary: 'Unknown email' });

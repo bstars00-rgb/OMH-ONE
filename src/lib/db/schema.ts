@@ -152,6 +152,14 @@ export const requests = pgTable(
       .notNull()
       .references(() => employees.id),
     departmentId: uuid('department_id').references(() => departments.id),
+    /**
+     * The office that raised the request — the tenant boundary.
+     *
+     * Denormalized from the requester at creation rather than joined, because it
+     * is filtered on by every list, aggregate and export. Requests stay with the
+     * office that filed them even if the person later transfers.
+     */
+    officeId: uuid('office_id').references(() => offices.id),
     costCenterId: uuid('cost_center_id').references(() => costCenters.id),
     status: text('status').notNull().default('DRAFT'),
     priority: text('priority').notNull().default('NORMAL'), // CRITICAL | HIGH | NORMAL | LOW
@@ -172,6 +180,7 @@ export const requests = pgTable(
     index('requests_type_idx').on(t.requestType),
     index('requests_requester_idx').on(t.requesterId),
     index('requests_department_idx').on(t.departmentId),
+    index('requests_office_idx').on(t.officeId),
     index('requests_submitted_idx').on(t.submittedAt),
   ],
 );
@@ -188,7 +197,19 @@ export const approvalWorkflows = pgTable('approval_workflows', {
   updatedAt: updatedAt(),
 });
 
-/** Template step. `conditionType`/`conditionValue` gate conditional approvers. */
+/**
+ * Template step. `conditionType`/`conditionValue` gate conditional approvers.
+ *
+ * A step names its approver in one of two ways:
+ *   - `approverRole` — resolved per request from the org chart, so the route
+ *     follows reorganisations automatically (MANAGER, DEPT_HEAD, HR, FINANCE,
+ *     DIRECTOR, CTO, CEO).
+ *   - `approverEmployeeId` — always this person, regardless of who filed the
+ *     request. This is what makes a fixed chain such as
+ *     Paul → Vicky → Aiden → CTO → CEO expressible.
+ *
+ * When both are set the named person wins; the role is retained as the label.
+ */
 export const approvalWorkflowSteps = pgTable(
   'approval_workflow_steps',
   {
@@ -198,7 +219,9 @@ export const approvalWorkflowSteps = pgTable(
       .references(() => approvalWorkflows.id, { onDelete: 'cascade' }),
     stepOrder: integer('step_order').notNull(),
     name: text('name').notNull(),
-    approverRole: text('approver_role').notNull(), // MANAGER | DEPT_HEAD | HR | FINANCE | DIRECTOR
+    approverRole: text('approver_role').notNull(),
+    /** Fixed approver. Null means resolve `approverRole` per request. */
+    approverEmployeeId: uuid('approver_employee_id').references(() => employees.id, { onDelete: 'set null' }),
     slaHours: integer('sla_hours').notNull().default(24),
     conditionType: text('condition_type').notNull().default('ALWAYS'), // ALWAYS | AMOUNT_GT | INTERNATIONAL | DAYS_GT
     conditionValue: numeric('condition_value', { precision: 14, scale: 2 }),

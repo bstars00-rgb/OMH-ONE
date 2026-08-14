@@ -1,10 +1,16 @@
 import 'server-only';
 import { eq } from 'drizzle-orm';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { ready } from '@/lib/db/bootstrap';
-import { departments, employees, userRoles, users } from '@/lib/db/schema';
+import { departments, employees, offices, userRoles, users } from '@/lib/db/schema';
 import { requireSession, type SessionUser } from '@/lib/auth/session';
+import { seesAllOffices } from '@/lib/rbac';
 import type { Role } from '@/types/domain';
+
+/** Cookie holding the office a consolidated viewer has narrowed to. */
+export const OFFICE_COOKIE = 'ohmy_office';
+export const ALL_OFFICES = 'all';
 
 /**
  * Session validation against the database.
@@ -54,7 +60,7 @@ export async function requireLiveSession(): Promise<SessionUser> {
 
   // Returned from the database, not the cookie, so a role or department change
   // applies on the next page load. The cookie only ever carries identity.
-  return {
+  const base: SessionUser = {
     userId: row.userId,
     employeeId: row.employeeId,
     email: row.email,
@@ -66,4 +72,27 @@ export async function requireLiveSession(): Promise<SessionUser> {
     officeId: row.officeId,
     position: row.position,
   };
+
+  return { ...base, activeOfficeId: await resolveActiveOffice(base) };
+}
+
+/**
+ * Decides which office this request is scoped to.
+ *
+ * Ordinary staff are pinned to their own office — the cookie is ignored, so
+ * hand-editing it cannot widen access. Consolidated roles may select one office
+ * (or none, meaning all); their selection is validated against the office table
+ * so a stale or invented id falls back to the consolidated view rather than
+ * silently matching nothing.
+ */
+async function resolveActiveOffice(session: SessionUser): Promise<string | null> {
+  if (!seesAllOffices(session)) return session.officeId;
+
+  const jar = await cookies();
+  const selected = jar.get(OFFICE_COOKIE)?.value;
+  if (!selected || selected === ALL_OFFICES) return null;
+
+  const db = await ready();
+  const [office] = await db.select({ id: offices.id }).from(offices).where(eq(offices.id, selected)).limit(1);
+  return office?.id ?? null;
 }

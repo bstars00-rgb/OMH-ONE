@@ -72,6 +72,23 @@ export const shell: MessageTable = {
   'language.change': { en: 'Change language', ko: '언어 변경' },
   'language.label': { en: 'Language', ko: '언어' },
 
+  /* --- office / tenant --- */
+  'office.switch': { en: 'Switch office', ko: '지사 전환' },
+  'office.viewing': { en: 'Viewing', ko: '조회 범위' },
+  'office.all': { en: 'All offices', ko: '전사' },
+  'office.allConsolidated': { en: 'All offices (consolidated)', ko: '전사 통합' },
+  'office.ownOnly': { en: 'Your office. Requests are scoped to it.', ko: '소속 지사입니다. 기안은 이 범위로 제한됩니다.' },
+  'office.consolidatedNote': {
+    en: 'Executives, Finance, administrators and auditors can view every office. Everyone else sees only their own.',
+    ko: '임원·재무·관리자·감사는 전 지사를 조회할 수 있습니다. 그 외에는 소속 지사만 조회됩니다.',
+  },
+  'office.label': { en: 'Office', ko: '지사' },
+  'office.scopedTo': { en: 'Scoped to {office}', ko: '{office} 기준' },
+  'office.consolidated': { en: 'Consolidated across all offices', ko: '전 지사 통합 기준' },
+  'office.switchDenied': { en: 'Your role is limited to your own office.', ko: '현재 권한은 소속 지사로 제한됩니다.' },
+  'office.unknown': { en: 'Unknown office.', ko: '알 수 없는 지사입니다.' },
+  'office.switched': { en: 'Office switched.', ko: '지사가 전환되었습니다.' },
+
   /* --- notifications --- */
   'notif.title': { en: 'Notifications', ko: '알림' },
   'notif.aria': { en: 'Notifications', ko: '알림' },
