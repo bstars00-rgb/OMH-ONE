@@ -66,6 +66,7 @@ export const NAV: NavSection[] = [
   {
     labelKey: 'nav.section.admin',
     items: [
+      { labelKey: 'nav.admin.templates', href: '/admin/templates', icon: 'LayoutTemplate', capability: 'admin.workflow' },
       { labelKey: 'nav.admin.workflows', href: '/admin/workflows', icon: 'GitBranch', capability: 'admin.workflow', matchPrefix: true },
       { labelKey: 'nav.admin.policies', href: '/admin/policies', icon: 'ShieldCheck', capability: 'admin.policy' },
       { labelKey: 'nav.admin.organization', href: '/admin/organization', icon: 'Building2', capability: 'admin.organization' },

@@ -48,6 +48,7 @@ const ROUTES = [
   '/analytics',
   '/reports',
   '/audit',
+  '/admin/templates',
   '/admin/workflows',
   '/admin/policies',
   '/admin/organization',
