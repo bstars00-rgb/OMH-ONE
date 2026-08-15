@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import * as Icons from 'lucide-react';
 import { requireSession } from '@/lib/auth/session';
 import { can } from '@/lib/rbac';
+import { ready } from '@/lib/db/bootstrap';
+import { offices } from '@/lib/db/schema';
+import { listTemplates } from '@/server/queries/templates';
 import { PageHeader } from '@/components/page-header';
 import { ForbiddenPage } from '@/components/ui/states';
+import { FormPicker, type PickerEntry } from '@/components/requests/new/form-picker';
 import { getI18n, getT } from '@/lib/i18n/server';
 import { REQUEST_TYPES, REQUEST_TYPE_META } from '@/types/domain';
 
@@ -18,6 +20,41 @@ export default async function NewRequestPage() {
   const { t } = await getI18n();
   if (!can(session, 'request.create')) return <ForbiddenPage what={t('new.creatingRequests')} />;
 
+  const db = await ready();
+  const [templates, officeRows] = await Promise.all([
+    listTemplates(session),
+    db.select({ id: offices.id, code: offices.code }).from(offices),
+  ]);
+  const officeCode = new Map(officeRows.map((o) => [o.id, o.code]));
+
+  // The six built-in types and the templates go into one list. To the person
+  // filing a request they are the same thing — a form — and the distinction
+  // between "has bespoke logic" and "is a template" is ours, not theirs.
+  const entries: PickerEntry[] = [
+    ...REQUEST_TYPES.map((type) => ({
+      href: `/requests/new/${type}`,
+      nameEn: t(`type.${type}`),
+      nameKo: t(`type.${type}`),
+      descriptionEn: t(`new.blurb.${type}`),
+      descriptionKo: t(`new.blurb.${type}`),
+      category: 'CORE',
+      icon: REQUEST_TYPE_META[type].icon,
+      officeCode: null,
+      builtIn: true,
+    })),
+    ...templates.map((tpl) => ({
+      href: `/requests/new/t/${tpl.id}`,
+      nameEn: tpl.nameEn,
+      nameKo: tpl.nameKo,
+      descriptionEn: tpl.descriptionEn,
+      descriptionKo: tpl.descriptionKo,
+      category: tpl.category,
+      icon: tpl.icon,
+      officeCode: tpl.officeId ? (officeCode.get(tpl.officeId) ?? null) : null,
+      builtIn: false,
+    })),
+  ];
+
   return (
     <>
       <PageHeader
@@ -25,38 +62,7 @@ export default async function NewRequestPage() {
         title={t('new.title')}
         description={t('new.subtitle')}
       />
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {REQUEST_TYPES.map((type) => {
-          const meta = REQUEST_TYPE_META[type];
-          const Icon = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[meta.icon];
-          return (
-            <Link
-              key={type}
-              href={`/requests/new/${type}`}
-              className="group rounded-[var(--radius-card)] border border-border-subtle bg-surface p-4 transition-colors hover:border-accent-border hover:bg-accent-soft/30"
-            >
-              <div className="flex items-start gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-text-muted transition-colors group-hover:bg-accent group-hover:text-accent-fg">
-                  {Icon && <Icon className="size-4.5" />}
-                </span>
-                <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 text-sm font-semibold text-text">
-                    {t(`type.${type}`)}
-                    <span className="font-mono text-[10px] font-normal text-text-subtle">{meta.prefix}</span>
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-text-muted">{t(`new.blurb.${type}`)}</p>
-                </div>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-
-      <p className="mt-5 flex items-center gap-1.5 text-xs text-text-subtle">
-        <Icons.Sparkles className="size-3.5" />
-        {t('new.aiHint')}
-      </p>
+      <FormPicker entries={entries} />
     </>
   );
 }

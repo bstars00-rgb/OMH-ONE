@@ -22,6 +22,7 @@ import { calcWorkingDays, daysBetween } from '@/lib/dates';
 import { REFERENCE_RATES, dec, round2 } from '@/lib/money';
 import type { Currency } from '@/types/domain';
 import { recordAudit } from '@/server/audit';
+import { buildTitle } from '@/lib/validation/templates';
 import type { SessionUser } from '@/lib/auth/session';
 import type { ExpenseInput, GenericInput, LeaveInput, PurchaseInput, TripInput } from '@/lib/validation/requests';
 import type { Database } from '@/lib/db';
@@ -73,7 +74,7 @@ interface BaseArgs {
   currency: Currency;
 }
 
-async function insertBase(tx: Tx, session: SessionUser, args: BaseArgs) {
+async function insertBase(tx: Tx, session: SessionUser, args: BaseArgs & { templateId?: string; values?: Record<string, unknown> }) {
   const ctx = await requesterContext(tx, session.employeeId);
   const requestNumber = await nextRequestNumber(tx, args.type);
   const id = crypto.randomUUID();
@@ -97,6 +98,8 @@ async function insertBase(tx: Tx, session: SessionUser, args: BaseArgs) {
     amountBase: dec(args.amountBase),
     currency: args.currency,
     amountOriginal: dec(args.amountOriginal),
+    templateId: args.templateId ?? null,
+    values: args.values ?? null,
   });
 
   return { id, requestNumber, ...ctx };
@@ -382,6 +385,52 @@ export async function createGeneric(session: SessionUser, type: 'HR' | 'GENERAL'
     });
 
     await audit(tx, session, base, type);
+    return base;
+  });
+}
+
+/**
+ * Creates a request from a form template.
+ *
+ * The template supplies the shape; everything downstream — routing, SLA,
+ * timeline, comments, audit, analytics — is the same code path the typed forms
+ * use, because they all land in `requests`. That is the whole point of the
+ * universal base table: a form authored this morning by an administrator gets
+ * the approval engine built months ago, for free.
+ *
+ * `requestType` stays GENERAL so existing workflows, permissions and reports
+ * keep working without knowing templates exist. The template is the *shape*;
+ * the type is the *route*.
+ */
+export async function createFromTemplate(
+  session: SessionUser,
+  template: { id: string; titlePattern: string; name: string; amountField: string | null; workflowId: string | null },
+  values: Record<string, unknown>,
+  currency: Currency = 'USD',
+) {
+  const db = await ready();
+  return db.transaction(async (tx) => {
+    const amount = template.amountField ? Number(values[template.amountField]) || 0 : 0;
+    const amountBase = toBase(amount, currency);
+
+    // Long text fields become the description so search, the AI summary and the
+    // request detail page have something to read without knowing the schema.
+    const longest = Object.entries(values)
+      .filter(([, v]) => typeof v === 'string' && v.length > 20)
+      .sort((a, b) => String(b[1]).length - String(a[1]).length)[0];
+
+    const base = await insertBase(tx, session, {
+      type: 'GENERAL',
+      title: buildTitle(template.titlePattern, template.name, values),
+      description: longest ? String(longest[1]) : null,
+      amountBase,
+      amountOriginal: amount,
+      currency,
+      templateId: template.id,
+      values,
+    });
+
+    await audit(tx, session, base, 'GENERAL');
     return base;
   });
 }

@@ -13,6 +13,7 @@ import {
   employees,
   expenseClaims,
   expenseItems,
+  formTemplates,
   genericRequests,
   leaveRequests,
   purchaseItems,
@@ -24,6 +25,7 @@ import {
 } from '@/lib/db/schema';
 import { canViewRequest, requestVisibility } from '@/lib/rbac';
 import type { SessionUser } from '@/lib/auth/session';
+import type { TemplateField } from '@/lib/validation/templates';
 
 /** Latest AI risk for a request, as a correlated scalar subquery. */
 const latestRisk = sql<string>`(
@@ -237,6 +239,14 @@ export interface RequestDetail {
   purchase: (typeof purchaseRequests.$inferSelect & { vendorName: string | null; items: (typeof purchaseItems.$inferSelect)[] }) | null;
   expense: (typeof expenseClaims.$inferSelect & { items: (typeof expenseItems.$inferSelect)[]; linkedTripNumber: string | null }) | null;
   generic: typeof genericRequests.$inferSelect | null;
+  /**
+   * The form template this request was filed on, when it came from one.
+   *
+   * Carried into the detail view because otherwise an approver sees a title and
+   * a paragraph and none of the structured fields the requester filled in —
+   * which is most of the document.
+   */
+  template: { nameEn: string; nameKo: string; fields: TemplateField[] } | null;
   currentStep: (typeof approvalSteps.$inferSelect) | null;
 }
 
@@ -328,6 +338,7 @@ export async function getRequestDetail(session: SessionUser, id: string): Promis
     purchase: null,
     expense: null,
     generic: null,
+    template: null,
     currentStep: null,
   };
 
@@ -392,6 +403,15 @@ export async function getRequestDetail(session: SessionUser, id: string): Promis
     default: {
       const [g] = await db.select().from(genericRequests).where(eq(genericRequests.requestId, id)).limit(1);
       detail.generic = g ?? null;
+
+      if (row.request.templateId) {
+        const [tpl] = await db
+          .select({ nameEn: formTemplates.nameEn, nameKo: formTemplates.nameKo, fields: formTemplates.fields })
+          .from(formTemplates)
+          .where(eq(formTemplates.id, row.request.templateId))
+          .limit(1);
+        detail.template = tpl ? { nameEn: tpl.nameEn, nameKo: tpl.nameKo, fields: tpl.fields as TemplateField[] } : null;
+      }
     }
   }
 

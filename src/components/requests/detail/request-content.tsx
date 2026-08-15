@@ -35,7 +35,12 @@ export async function RequestContent({ detail }: { detail: RequestDetail }) {
     case 'EXPENSE':
       return <ExpenseContent detail={detail} l={l} />;
     default:
-      return <GenericContent detail={detail} l={l} />;
+      // A template-filed request renders from its own field definitions.
+      return detail.template ? (
+        <TemplateContent detail={detail} l={l} />
+      ) : (
+        <GenericContent detail={detail} l={l} />
+      );
   }
 }
 
@@ -308,6 +313,71 @@ function ExpenseContent({ detail, l }: { detail: RequestDetail; l: L }) {
         </TableWrap>
       </Card>
     </div>
+  );
+}
+
+/**
+ * Renders a template-filed request from the template's own fields.
+ *
+ * Reads the definitions rather than the stored keys so the approver sees the
+ * labels in their language and in the order the form declared — and so a field
+ * added to the template later does not silently disappear from old requests
+ * (it renders as "—" instead, which is the truth).
+ */
+function TemplateContent({ detail, l }: { detail: RequestDetail; l: L }) {
+  const { t, locale } = l;
+  const template = detail.template!;
+  const values = (detail.request.values ?? {}) as Record<string, unknown>;
+
+  const show = (field: (typeof template.fields)[number]) => {
+    const raw = values[field.key];
+    if (raw === undefined || raw === null || raw === '') return '—';
+    switch (field.type) {
+      case 'money':
+        return formatMoneyL(locale, Number(raw), detail.request.currency);
+      case 'date':
+        return formatDateL(locale, String(raw));
+      case 'checkbox':
+        return t(raw ? 'common.yes' : 'common.no');
+      case 'select': {
+        const option = field.options?.find((o) => o.value === String(raw));
+        return option ? (locale === 'ko' ? option.labelKo : option.labelEn) : String(raw);
+      }
+      default:
+        return String(raw);
+    }
+  };
+
+  // Long text reads better full width, below the paired rows.
+  const rows = template.fields.filter((f) => f.type !== 'textarea');
+  const blocks = template.fields.filter((f) => f.type === 'textarea');
+
+  return (
+    <Card>
+      <CardHeader title={locale === 'ko' ? template.nameKo : template.nameEn} icon={<FileText className="size-4" />} />
+      <CardBody className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
+        <dl>
+          {rows.slice(0, Math.ceil(rows.length / 2)).map((f) => (
+            <DetailRow key={f.key} label={locale === 'ko' ? f.labelKo : f.labelEn}>
+              {show(f)}
+            </DetailRow>
+          ))}
+        </dl>
+        <dl>
+          {rows.slice(Math.ceil(rows.length / 2)).map((f) => (
+            <DetailRow key={f.key} label={locale === 'ko' ? f.labelKo : f.labelEn}>
+              {show(f)}
+            </DetailRow>
+          ))}
+        </dl>
+        {blocks.map((f) => (
+          <div key={f.key} className="sm:col-span-2">
+            <p className="mt-3 mb-1 text-xs text-text-muted">{locale === 'ko' ? f.labelKo : f.labelEn}</p>
+            <Prose preserveBreaks>{show(f)}</Prose>
+          </div>
+        ))}
+      </CardBody>
+    </Card>
   );
 }
 

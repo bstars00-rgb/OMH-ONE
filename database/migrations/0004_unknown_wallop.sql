@@ -1,0 +1,1 @@
+ALTER TABLE "form_templates" ADD COLUMN "keywords" jsonb DEFAULT '[]'::jsonb NOT NULL;

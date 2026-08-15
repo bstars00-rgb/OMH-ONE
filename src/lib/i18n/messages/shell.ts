@@ -20,7 +20,7 @@ export const shell: MessageTable = {
   'nav.leave': { en: 'Leave', ko: '연차' },
   'nav.calendar': { en: 'Calendar', ko: '캘린더' },
   'nav.expenses': { en: 'Expenses', ko: '경비' },
-  'nav.procurement': { en: 'Purchase Requests', ko: '구매 요청' },
+  'nav.procurement': { en: 'Purchase Requests', ko: '지출 요청' },
   'nav.budgets': { en: 'Budgets', ko: '예산' },
   'nav.travel': { en: 'Business Trips', ko: '출장' },
   'nav.analytics': { en: 'Analytics', ko: '분석' },

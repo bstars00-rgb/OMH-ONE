@@ -2,6 +2,62 @@ import type { MessageTable } from '../types';
 
 /** Create-request forms: fields, hints, validation and the AI draft box. */
 export const forms: MessageTable = {
+  /* --- form picker (AI-first) --- */
+  'pick.askTitle': { en: 'What do you need to file?', ko: '무엇을 올리시겠어요?' },
+  'pick.askBody': {
+    en: 'Describe it in your own words. The right form opens with the fields already filled in for you to check.',
+    ko: '평소 말하듯 적어 주세요. 맞는 양식이 열리고 항목이 미리 채워집니다. 확인만 하시면 됩니다.',
+  },
+  'pick.askPlaceholder': {
+    en: 'e.g. Seal needed on the Tokyo hotel contract by Friday',
+    ko: '예: 금요일까지 도쿄 호텔 계약서에 도장 받아야 합니다',
+  },
+  'pick.go': { en: 'Open the form', ko: '양식 열기' },
+  'pick.routing': { en: 'Finding the form…', ko: '양식을 찾는 중…' },
+  'pick.shortcut': { en: '⌘ + Enter', ko: '⌘ + Enter' },
+  'pick.matched': { en: 'Opening the form.', ko: '양식을 엽니다.' },
+  'pick.tooShort': { en: 'Add a little more detail.', ko: '조금 더 자세히 적어 주세요.' },
+  'pick.noMatch': {
+    en: 'No form matched that. Pick one from the list below — and tell an administrator if the form you need is missing.',
+    ko: '해당하는 양식을 찾지 못했습니다. 아래 목록에서 선택하시고, 필요한 양식이 없다면 관리자에게 알려 주세요.',
+  },
+  'pick.ambiguous': {
+    en: 'More than one form could fit. Pick the right one below.',
+    ko: '해당할 수 있는 양식이 여러 개입니다. 아래에서 선택해 주세요.',
+  },
+  'pick.browse': { en: 'Or pick a form', ko: '또는 양식 선택' },
+  'pick.searchForms': { en: 'Search forms', ko: '양식 검색' },
+  'pick.noForms': { en: 'No form matches “{query}”.', ko: '“{query}”에 해당하는 양식이 없습니다.' },
+  'pick.cat.CORE': { en: 'Core requests', ko: '기본 기안' },
+  'pick.cat.HR': { en: 'People', ko: '인사' },
+  'pick.cat.FINANCE': { en: 'Finance', ko: '재무' },
+  'pick.cat.TRAVEL': { en: 'Travel', ko: '출장' },
+  'pick.cat.DOCUMENT': { en: 'Documents', ko: '문서' },
+  'pick.cat.GENERAL': { en: 'General', ko: '일반' },
+
+  /* --- form templates --- */
+  'tpl.notFound': { en: 'That form is not available to you.', ko: '사용할 수 없는 양식입니다.' },
+  'tpl.choose': { en: 'Choose…', ko: '선택하세요…' },
+  'tpl.preview': { en: 'Document title', ko: '문서 제목' },
+  'tpl.previewSub': { en: 'Generated from the fields as you type.', ko: '입력하는 항목에서 자동으로 만들어집니다.' },
+  'tpl.titleNote': {
+    en: 'The title is built from the form, so there is no naming convention to remember and no two people format it differently.',
+    ko: '제목이 입력 항목에서 자동 생성되므로 명명 규칙을 외울 필요가 없고, 사람마다 형식이 달라지지 않습니다.',
+  },
+  'tpl.badFieldKey': { en: 'Field keys must start with a letter and contain no spaces.', ko: '항목 키는 영문자로 시작하고 공백이 없어야 합니다.' },
+  'tpl.badCode': { en: 'Codes are uppercase letters, digits and hyphens.', ko: '코드는 대문자, 숫자, 하이픈만 사용합니다.' },
+  'tpl.needName': { en: 'Give the form a name.', ko: '양식 이름을 입력하세요.' },
+  'tpl.needLabel': { en: 'Every field needs a label in both languages.', ko: '모든 항목에 두 언어의 라벨이 필요합니다.' },
+  'tpl.needField': { en: 'A form needs at least one field.', ko: '양식에는 항목이 최소 1개 필요합니다.' },
+  'tpl.duplicateKey': { en: 'Two fields share the same key.', ko: '항목 키가 중복되었습니다.' },
+  'tpl.selectNeedsOptions': { en: 'A choice field needs at least one option.', ko: '선택 항목에는 선택지가 최소 1개 필요합니다.' },
+  'tpl.unknownPlaceholder': { en: 'The title pattern references a field that does not exist.', ko: '제목 패턴이 존재하지 않는 항목을 참조합니다.' },
+  'tpl.unknownAmountField': { en: 'The amount field does not exist.', ko: '금액 항목이 존재하지 않습니다.' },
+  'tpl.amountFieldNotNumeric': {
+    en: 'The amount field must be a number or money field — it drives budget and routing.',
+    ko: '금액 항목은 숫자 또는 금액 유형이어야 합니다. 예산과 결재선에 사용됩니다.',
+  },
+
   /* --- AI draft box --- */
   'draft.title': { en: 'Draft with AI', ko: 'AI로 초안 작성' },
   'draft.subtitle': {

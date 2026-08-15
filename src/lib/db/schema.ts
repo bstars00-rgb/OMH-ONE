@@ -165,6 +165,19 @@ export const requests = pgTable(
     priority: text('priority').notNull().default('NORMAL'), // CRITICAL | HIGH | NORMAL | LOW
     priorityScore: integer('priority_score').notNull().default(0),
     workflowId: uuid('workflow_id'),
+    /**
+     * Set when this request came from a form template rather than one of the
+     * built-in typed forms. `values` then holds the submitted fields, keyed by
+     * the template's field keys.
+     *
+     * Typed requests (leave, trip, purchase, expense) keep their own detail
+     * tables: their fields carry real logic — working-day arithmetic, budget
+     * reservation, duplicate hashing — that a JSON blob cannot express. The
+     * template path serves the long tail of forms that are structured text plus
+     * an approval route, which is most of what a company actually files.
+     */
+    templateId: uuid('template_id'),
+    values: jsonb('values').$type<Record<string, unknown>>(),
     currentStepOrder: integer('current_step_order').notNull().default(0),
     amountBase: numeric('amount_base', { precision: 14, scale: 2 }).notNull().default('0'),
     currency: text('currency').notNull().default('USD'),
@@ -181,7 +194,88 @@ export const requests = pgTable(
     index('requests_requester_idx').on(t.requesterId),
     index('requests_department_idx').on(t.departmentId),
     index('requests_office_idx').on(t.officeId),
+    index('requests_template_idx').on(t.templateId),
     index('requests_submitted_idx').on(t.submittedAt),
+  ],
+);
+
+/**
+ * A form template: the shape of a request, stored as data.
+ *
+ * The company this is built for runs ~23 form templates across its Korean,
+ * Japanese, Singapore and Chinese offices — 押印申請, 出張伺書, 인수인계서,
+ * 사직서 and so on. None of those exist in any packaged ERP, and each new one
+ * cannot mean a developer ticket. So the shape is a row, the fields are JSON,
+ * and an administrator (helped by AI) authors them.
+ *
+ * `titlePattern` replaces the naming convention those companies otherwise cram
+ * into the document title — "[Ohmy_JP]_YYYY/MM/DD-YYYY/MM/DD_place_出張伺書_name"
+ * is a filename doing a database's job. Here the title is generated from the
+ * fields, so nobody has to remember the format.
+ */
+export const formTemplates = pgTable(
+  'form_templates',
+  {
+    id: id(),
+    code: text('code').notNull().unique(), // JP-SEAL-SALES
+    nameEn: text('name_en').notNull(),
+    nameKo: text('name_ko').notNull(),
+    descriptionEn: text('description_en'),
+    descriptionKo: text('description_ko'),
+    /** Null means every office may use it. */
+    officeId: uuid('office_id').references(() => offices.id, { onDelete: 'cascade' }),
+    /** Groups the picker: HR | FINANCE | TRAVEL | DOCUMENT | GENERAL */
+    category: text('category').notNull().default('GENERAL'),
+    icon: text('icon').notNull().default('FileText'),
+    /**
+     * Field definitions, in display order. Validated by `templateFieldsSchema`
+     * in `src/lib/validation/templates.ts` on every write, so a malformed
+     * template cannot reach the renderer.
+     */
+    fields: jsonb('fields')
+      .$type<
+        {
+          key: string;
+          labelEn: string;
+          labelKo: string;
+          type: 'text' | 'textarea' | 'number' | 'money' | 'date' | 'select' | 'checkbox' | 'employee';
+          required?: boolean;
+          options?: { value: string; labelEn: string; labelKo: string }[];
+          hintEn?: string;
+          hintKo?: string;
+        }[]
+      >()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    /**
+     * Search synonyms in every language the company files in.
+     *
+     * Staff say "도장", the form is called "날인 신청서"; they say "송금", the
+     * form is "T/R". No deterministic matcher bridges that, and hand-listing
+     * synonyms cannot scale to forms an administrator writes next month — so
+     * the AI generator produces them at authoring time, once, instead of the
+     * router guessing at query time, every time.
+     */
+    keywords: jsonb('keywords')
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    /** e.g. "출장 {city} {startDate}" — placeholders are field keys. */
+    titlePattern: text('title_pattern').notNull().default(''),
+    /** Field key holding the amount, if this template carries one. Drives budget and routing. */
+    amountField: text('amount_field'),
+    /** Explicit route; null falls back to the GENERAL workflow. */
+    workflowId: uuid('workflow_id'),
+    isActive: boolean('is_active').notNull().default(true),
+    /** Marks templates authored by the AI generator rather than seeded. */
+    createdByAi: boolean('created_by_ai').notNull().default(false),
+    sortOrder: integer('sort_order').notNull().default(100),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('form_templates_office_idx').on(t.officeId),
+    index('form_templates_category_idx').on(t.category),
   ],
 );
 

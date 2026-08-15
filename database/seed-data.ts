@@ -10,6 +10,11 @@ export const OFFICES = [
   { code: 'VN', name: 'Vietnam Office', country: 'Vietnam', city: 'Ho Chi Minh City', timezone: 'Asia/Ho_Chi_Minh', baseCurrency: 'USD' },
   { code: 'KR', name: 'Korea Office', country: 'Korea', city: 'Seoul', timezone: 'Asia/Seoul', baseCurrency: 'USD' },
   { code: 'SG', name: 'Singapore Office', country: 'Singapore', city: 'Singapore', timezone: 'Asia/Singapore', baseCurrency: 'USD' },
+  // JP and CN carry no seeded staff yet, but they exist because their form
+  // templates do — 押印申請 and 出張伺書 are Japan-only documents, and an
+  // office-scoped template needs a real office to hang from.
+  { code: 'JP', name: 'Japan Office', country: 'Japan', city: 'Tokyo', timezone: 'Asia/Tokyo', baseCurrency: 'USD' },
+  { code: 'CN', name: 'China Office', country: 'China', city: 'Shanghai', timezone: 'Asia/Shanghai', baseCurrency: 'USD' },
 ] as const;
 
 export const DEPARTMENTS = [

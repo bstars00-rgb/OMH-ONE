@@ -22,6 +22,20 @@
       "when": 1786682043976,
       "tag": "0002_ai_review_locale",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786786391526,
+      "tag": "0003_quiet_wraith",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786794503369,
+      "tag": "0004_unknown_wallop",
+      "breakpoints": true
     }
   ]
 }

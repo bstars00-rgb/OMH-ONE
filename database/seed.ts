@@ -45,8 +45,10 @@ import {
   userRoles,
   users,
   vendors,
+  formTemplates,
 } from '../src/lib/db/schema';
 import type { Database } from '../src/lib/db';
+import { FORM_TEMPLATES } from './template-data';
 import { hashPassword } from '../src/lib/auth/password';
 import { materializeSteps, scorePriority, type RequestFacts } from '../src/lib/workflow/engine';
 import { calcWorkingDays, toISODate, addDays, daysBetween } from '../src/lib/dates';
@@ -1343,6 +1345,27 @@ export async function seed(db: Database) {
     createdAt: ago(46),
   });
   await chunked(db, auditLogs, auditRows);
+
+  // Form templates. Office-scoped ones resolve their code (JP / KR / …) to an id;
+  // a null office means every office may file it.
+  await db.insert(formTemplates).values(
+    FORM_TEMPLATES.map((t) => ({
+      id: randomUUID(),
+      code: t.code,
+      nameEn: t.nameEn,
+      nameKo: t.nameKo,
+      descriptionEn: t.descriptionEn ?? null,
+      descriptionKo: t.descriptionKo ?? null,
+      officeId: t.office ? (officeIds.get(t.office) ?? null) : null,
+      category: t.category,
+      icon: t.icon,
+      fields: t.fields,
+      titlePattern: t.titlePattern,
+      amountField: t.amountField ?? null,
+      keywords: t.keywords,
+      sortOrder: t.sortOrder,
+    })),
+  );
 
   await db.insert(systemSettings).values([
     { key: 'company.name', value: 'OHMY Hotel Group', description: 'Display name used across the app.' },

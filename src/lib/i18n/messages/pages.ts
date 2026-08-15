@@ -279,19 +279,19 @@ export const pages: MessageTable = {
   },
 
   /* ---------------- Procurement ---------------- */
-  'procurement.title': { en: 'Purchase Requests', ko: '구매 요청' },
+  'procurement.title': { en: 'Purchase Requests', ko: '지출 요청' },
   'procurement.subtitle': {
     en: 'Procurement activity, vendors and price history across {scope}.',
-    ko: '{scope} 구매 현황, 거래처, 단가 이력입니다.',
+    ko: '{scope} 지출 현황, 거래처, 단가 이력입니다.',
   },
-  'procurement.new': { en: 'New purchase request', ko: '구매 요청 작성' },
-  'procurement.mtd': { en: 'Procurement (MTD)', ko: '이번 달 구매액' },
+  'procurement.new': { en: 'New purchase request', ko: '지출 요청 작성' },
+  'procurement.mtd': { en: 'Procurement (MTD)', ko: '이번 달 지출액' },
   'procurement.pending': { en: 'Pending approval', ko: '결재 대기' },
   'procurement.approved12': { en: 'Approved (12 months)', ko: '승인 건수 (12개월)' },
   'procurement.topVendor': { en: 'Top vendor', ko: '주요 거래처' },
   'procurement.topCategory': { en: 'Top category', ko: '주요 분류' },
-  'procurement.byMonth': { en: 'Procurement by month', ko: '월별 구매액' },
-  'procurement.byMonthSub': { en: 'Approved purchase requests', ko: '승인된 구매 요청 기준' },
+  'procurement.byMonth': { en: 'Procurement by month', ko: '월별 지출액' },
+  'procurement.byMonthSub': { en: 'Approved purchase requests', ko: '승인된 지출 요청 기준' },
   'procurement.byCategory': { en: 'Spend by category', ko: '분류별 지출' },
   'procurement.byCategorySub': { en: 'Approved, last 12 months', ko: '최근 12개월 승인 기준' },
   'procurement.topVendors': { en: 'Top vendors', ko: '주요 거래처' },
@@ -319,14 +319,14 @@ export const pages: MessageTable = {
   'procurement.average': { en: 'Average', ko: '평균가' },
   'procurement.highest': { en: 'Highest', ko: '최고가' },
   'procurement.spread': { en: 'Spread', ko: '격차' },
-  'procurement.allRequests': { en: 'All purchase requests', ko: '전체 구매 요청' },
+  'procurement.allRequests': { en: 'All purchase requests', ko: '전체 지출 요청' },
   'procurement.emptyTitle': {
     en: 'No purchase requests match these filters',
-    ko: '조건에 맞는 구매 요청이 없습니다',
+    ko: '조건에 맞는 지출 요청이 없습니다',
   },
   'procurement.emptyBody': {
     en: 'Try clearing a filter, or raise a new purchase request.',
-    ko: '필터를 해제하거나 새 구매 요청을 작성해 보세요.',
+    ko: '필터를 해제하거나 새 지출 요청을 작성해 보세요.',
   },
 
   /* ---------------- Leave ---------------- */
@@ -427,7 +427,7 @@ export const pages: MessageTable = {
   'proc.title': { en: 'Purchase Requests', ko: '구매 요청' },
   'proc.subtitle': {
     en: 'Procurement activity, vendors and price history across {scope}.',
-    ko: '{scope} 구매 현황, 거래처, 단가 이력입니다.',
+    ko: '{scope} 지출 현황, 거래처, 단가 이력입니다.',
   },
   'proc.new': { en: 'New purchase request', ko: '구매 요청' },
   'proc.spendMtd': { en: 'Procurement (MTD)', ko: '구매 집행 (당월)' },
