@@ -1362,6 +1362,7 @@ export async function seed(db: Database) {
       fields: t.fields,
       titlePattern: t.titlePattern,
       amountField: t.amountField ?? null,
+      amountCommitsBudget: t.amountCommitsBudget ?? true,
       keywords: t.keywords,
       sortOrder: t.sortOrder,
     })),

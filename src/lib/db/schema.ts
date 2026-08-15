@@ -178,6 +178,14 @@ export const requests = pgTable(
      */
     templateId: uuid('template_id'),
     values: jsonb('values').$type<Record<string, unknown>>(),
+    /**
+     * Whether this request reserves budget on submission.
+     *
+     * Stored per row rather than read from the template at reservation time, so
+     * changing a template later cannot retroactively commit or release money
+     * against requests already in flight.
+     */
+    commitsBudget: boolean('commits_budget').notNull().default(true),
     currentStepOrder: integer('current_step_order').notNull().default(0),
     amountBase: numeric('amount_base', { precision: 14, scale: 2 }).notNull().default('0'),
     currency: text('currency').notNull().default('USD'),
@@ -262,8 +270,17 @@ export const formTemplates = pgTable(
       .default(sql`'[]'::jsonb`),
     /** e.g. "출장 {city} {startDate}" — placeholders are field keys. */
     titlePattern: text('title_pattern').notNull().default(''),
-    /** Field key holding the amount, if this template carries one. Drives budget and routing. */
+    /** Field key holding the amount, if this template carries one. Drives routing and display. */
     amountField: text('amount_field'),
+    /**
+     * Whether that amount is money leaving this quarter's budget.
+     *
+     * A seal application on a $120,000 contract needs executive scrutiny, but
+     * signing the contract is not spending $120,000 now — committing it would
+     * wipe out an operating budget an order of magnitude smaller. So the amount
+     * always drives routing and display; this decides whether it also reserves.
+     */
+    amountCommitsBudget: boolean('amount_commits_budget').notNull().default(true),
     /** Explicit route; null falls back to the GENERAL workflow. */
     workflowId: uuid('workflow_id'),
     isActive: boolean('is_active').notNull().default(true),

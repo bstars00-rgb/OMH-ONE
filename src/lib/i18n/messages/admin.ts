@@ -253,6 +253,18 @@ export const admin: MessageTable = {
   'tplGen.allOffices': { en: 'All offices', ko: '전 지사' },
   'tplGen.amountField': { en: 'Amount field', ko: '금액 항목' },
   'tplGen.noAmount': { en: 'No amount', ko: '금액 없음' },
+  'tplGen.budgetEffect': { en: 'Budget effect', ko: '예산 반영' },
+  'tplGen.commitsBudget': { en: 'Reserves budget', ko: '예산을 차감함' },
+  'tplGen.referenceOnlyNote': {
+    en: 'The amount will route and display but not reserve budget. Right for a contract value on a seal application — signing a contract is not spending that money this quarter.',
+    ko: '금액이 결재선과 화면에는 반영되지만 예산은 차감하지 않습니다. 날인 신청의 계약 금액처럼, 계약 체결이 곧 이번 분기 지출은 아닌 경우에 적합합니다.',
+  },
+  'tplGen.workflow': { en: 'Approval route', ko: '결재선' },
+  'tplGen.defaultWorkflow': { en: 'Default for its request type', ko: '기안 유형 기본 결재선' },
+  'tplGen.workflowNote': {
+    en: 'Naming a route here overrides the default — a seal application can go through legal review while other general requests do not. Requests already submitted keep the route they were given.',
+    ko: '여기서 결재선을 지정하면 기본값 대신 적용됩니다. 예를 들어 날인 신청만 법무 검토를 거치게 할 수 있습니다. 이미 상신된 기안은 상신 시점의 결재선을 유지합니다.',
+  },
   'tplGen.titlePattern': { en: 'Title pattern', ko: '제목 패턴' },
   'tplGen.titlePreview': { en: 'Titles will look like:', ko: '제목 예시:' },
   'tplGen.fields': { en: 'Fields ({count})', ko: '항목 ({count}개)' },

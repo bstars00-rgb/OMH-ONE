@@ -36,6 +36,13 @@
       "when": 1786794503369,
       "tag": "0004_unknown_wallop",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786798794413,
+      "tag": "0005_illegal_captain_marvel",
+      "breakpoints": true
     }
   ]
 }

@@ -24,6 +24,11 @@ export interface TemplateSeed {
   icon: string;
   titlePattern: string;
   amountField?: string;
+  /**
+   * Whether the amount is money leaving this quarter's budget. Default true;
+   * false for reference figures such as a contract value.
+   */
+  amountCommitsBudget?: boolean;
   /** Words people type that the form name does not contain. */
   keywords: string[];
   sortOrder: number;
@@ -160,6 +165,8 @@ export const FORM_TEMPLATES: TemplateSeed[] = [
     category: 'DOCUMENT',
     icon: 'Stamp',
     titlePattern: '날인 신청 — {documentName} ({counterparty})',
+    amountField: 'contractValue',
+    amountCommitsBudget: false,
     keywords: ["도장","날인","인감","직인","押印","捺印","계약서","seal","stamp","sign contract"],
     sortOrder: 20,
     fields: [

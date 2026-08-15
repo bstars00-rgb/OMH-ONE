@@ -74,7 +74,11 @@ interface BaseArgs {
   currency: Currency;
 }
 
-async function insertBase(tx: Tx, session: SessionUser, args: BaseArgs & { templateId?: string; values?: Record<string, unknown> }) {
+async function insertBase(
+  tx: Tx,
+  session: SessionUser,
+  args: BaseArgs & { templateId?: string; values?: Record<string, unknown>; commitsBudget?: boolean },
+) {
   const ctx = await requesterContext(tx, session.employeeId);
   const requestNumber = await nextRequestNumber(tx, args.type);
   const id = crypto.randomUUID();
@@ -100,6 +104,7 @@ async function insertBase(tx: Tx, session: SessionUser, args: BaseArgs & { templ
     amountOriginal: dec(args.amountOriginal),
     templateId: args.templateId ?? null,
     values: args.values ?? null,
+    commitsBudget: args.commitsBudget ?? true,
   });
 
   return { id, requestNumber, ...ctx };
@@ -404,7 +409,14 @@ export async function createGeneric(session: SessionUser, type: 'HR' | 'GENERAL'
  */
 export async function createFromTemplate(
   session: SessionUser,
-  template: { id: string; titlePattern: string; name: string; amountField: string | null; workflowId: string | null },
+  template: {
+    id: string;
+    titlePattern: string;
+    name: string;
+    amountField: string | null;
+    amountCommitsBudget: boolean;
+    workflowId: string | null;
+  },
   values: Record<string, unknown>,
   currency: Currency = 'USD',
 ) {
@@ -428,6 +440,9 @@ export async function createFromTemplate(
       currency,
       templateId: template.id,
       values,
+      // An amount with no budget effect still routes and displays; it just does
+      // not reserve. See form_templates.amountCommitsBudget.
+      commitsBudget: template.amountCommitsBudget,
     });
 
     await audit(tx, session, base, 'GENERAL');

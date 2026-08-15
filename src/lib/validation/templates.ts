@@ -67,6 +67,7 @@ export const templateSchema = z
     fields: z.array(templateFieldSchema).min(1, 'tpl.needField').max(25),
     titlePattern: z.string().trim().max(200).default(''),
     amountField: z.string().trim().max(40).nullable().optional(),
+    amountCommitsBudget: z.boolean().default(true),
     workflowId: z.string().uuid().nullable().optional(),
     isActive: z.boolean().default(true),
     sortOrder: z.coerce.number().int().min(0).max(9999).default(100),

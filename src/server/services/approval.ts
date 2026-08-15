@@ -10,6 +10,7 @@ import {
   comments,
   departments,
   employees,
+  formTemplates,
   leaveRequests,
   notifications,
   purchaseRequests,
@@ -160,13 +161,49 @@ export async function submitRequest(session: SessionUser, requestId: string) {
     const facts = await gatherFacts(tx, requestId, req.requestType, amountBase);
     const dir = await approverDirectory(tx, req.requesterId);
 
-    const [workflow] = await tx
-      .select({ id: approvalWorkflows.id })
-      .from(approvalWorkflows)
-      .where(and(eq(approvalWorkflows.requestType, req.requestType), eq(approvalWorkflows.isActive, true)))
-      .orderBy(sql`${approvalWorkflows.isDefault} desc`)
-      .limit(1);
-    if (!workflow) throw new WorkflowError('wfError.noWorkflow');
+    /*
+     * Which workflow applies.
+     *
+     * A form template may name its own route — a seal application needs legal
+     * review, which no other GENERAL request does. Resolved at submission
+     * rather than stored at creation, so retiring or repointing a template
+     * affects the next request rather than the drafts already sitting in
+     * someone's list. The materialized steps are still frozen once submitted,
+     * so approval history is never rewritten either way.
+     */
+    let workflowId: string | null = null;
+
+    if (req.templateId) {
+      const [tpl] = await tx
+        .select({ workflowId: formTemplates.workflowId })
+        .from(formTemplates)
+        .where(eq(formTemplates.id, req.templateId))
+        .limit(1);
+
+      if (tpl?.workflowId) {
+        // Verify it is still active; a template pointing at a retired workflow
+        // must fall back rather than strand the request with no route.
+        const [named] = await tx
+          .select({ id: approvalWorkflows.id })
+          .from(approvalWorkflows)
+          .where(and(eq(approvalWorkflows.id, tpl.workflowId), eq(approvalWorkflows.isActive, true)))
+          .limit(1);
+        workflowId = named?.id ?? null;
+      }
+    }
+
+    if (!workflowId) {
+      const [byType] = await tx
+        .select({ id: approvalWorkflows.id })
+        .from(approvalWorkflows)
+        .where(and(eq(approvalWorkflows.requestType, req.requestType), eq(approvalWorkflows.isActive, true)))
+        .orderBy(sql`${approvalWorkflows.isDefault} desc`)
+        .limit(1);
+      workflowId = byType?.id ?? null;
+    }
+
+    if (!workflowId) throw new WorkflowError('wfError.noWorkflow');
+    const workflow = { id: workflowId };
 
     const templates = await tx
       .select()

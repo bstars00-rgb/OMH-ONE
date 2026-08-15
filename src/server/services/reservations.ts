@@ -11,6 +11,16 @@ export interface RequestForReservation {
   requesterId: string;
   departmentId: string | null;
   amountBase: string;
+  /**
+   * False when the amount is a reference figure rather than spend.
+   *
+   * A seal application carries the contract's value so it routes to the right
+   * level of scrutiny, but signing a $120,000 contract does not spend $120,000
+   * from this quarter's operating budget — committing it would exhaust a budget
+   * an order of magnitude smaller. Optional so existing callers are unchanged;
+   * absent means it commits, which is the behaviour every typed form wants.
+   */
+  commitsBudget?: boolean | null;
 }
 
 /**
@@ -76,6 +86,8 @@ export async function reserve(tx: Tx, req: RequestForReservation, at = new Date(
     return;
   }
 
+  if (req.commitsBudget === false) return;
+
   const amount = Number(req.amountBase);
   if (amount <= 0) return;
   const budgetId = await findBudgetId(tx, req, at);
@@ -102,6 +114,8 @@ export async function release(tx: Tx, req: RequestForReservation, at = new Date(
       );
     return;
   }
+
+  if (req.commitsBudget === false) return;
 
   const amount = Number(req.amountBase);
   if (amount <= 0) return;
@@ -133,6 +147,8 @@ export async function commit(tx: Tx, req: RequestForReservation, at = new Date()
       );
     return;
   }
+
+  if (req.commitsBudget === false) return;
 
   const amount = Number(req.amountBase);
   if (amount > 0) {
@@ -199,6 +215,7 @@ export async function loadRequestForReservation(tx: Tx, requestId: string): Prom
       requesterId: requests.requesterId,
       departmentId: requests.departmentId,
       amountBase: requests.amountBase,
+      commitsBudget: requests.commitsBudget,
     })
     .from(requests)
     .where(eq(requests.id, requestId))

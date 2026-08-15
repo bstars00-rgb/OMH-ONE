@@ -100,6 +100,7 @@ export async function saveTemplateAction(raw: unknown, id?: string): Promise<Adm
       fields: input.fields,
       titlePattern: input.titlePattern,
       amountField: input.amountField ?? null,
+      amountCommitsBudget: input.amountCommitsBudget,
       workflowId: input.workflowId ?? null,
       isActive: input.isActive,
       sortOrder: input.sortOrder,

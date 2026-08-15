@@ -22,12 +22,16 @@ export interface TemplateRow {
   fields: TemplateField[];
   titlePattern: string;
   amountField: string | null;
+  amountCommitsBudget: boolean;
+  workflowId: string | null;
   isActive: boolean;
   createdByAi: boolean;
   sortOrder: number;
 }
 
 interface Draft {
+  amountCommitsBudget: boolean;
+  workflowId: string | null;
   code: string;
   nameEn: string;
   nameKo: string;
@@ -44,6 +48,8 @@ interface Draft {
 }
 
 const blank = (): Draft => ({
+  amountCommitsBudget: true,
+  workflowId: null,
   code: '',
   nameEn: '',
   nameKo: '',
@@ -70,9 +76,11 @@ const blank = (): Draft => ({
 export function TemplateStudio({
   templates,
   offices,
+  workflows,
 }: {
   templates: TemplateRow[];
   offices: { id: string; code: string; name: string }[];
+  workflows: { id: string; name: string; requestType: string; steps: number }[];
 }) {
   const router = useRouter();
   const { t, locale } = useI18n();
@@ -117,6 +125,8 @@ export function TemplateStudio({
         fields: d.fields,
         titlePattern: d.titlePattern,
         amountField: d.amountField,
+        amountCommitsBudget: true,
+        workflowId: null,
         isActive: true,
         sortOrder: 100,
       });
@@ -139,6 +149,8 @@ export function TemplateStudio({
       fields: row.fields,
       titlePattern: row.titlePattern,
       amountField: row.amountField,
+      amountCommitsBudget: row.amountCommitsBudget,
+      workflowId: row.workflowId,
       isActive: row.isActive,
       sortOrder: row.sortOrder,
     });
@@ -314,6 +326,30 @@ export function TemplateStudio({
                     ))}
                 </Select>
               </Labelled>
+              <Labelled label={t('tplGen.budgetEffect')} className={draft.amountField ? '' : 'opacity-40'}>
+                <label className="flex h-8 items-center gap-2 text-xs text-text">
+                  <Checkbox
+                    checked={draft.amountCommitsBudget}
+                    disabled={!draft.amountField}
+                    onChange={(e) => setDraft({ ...draft, amountCommitsBudget: e.target.checked })}
+                  />
+                  {t('tplGen.commitsBudget')}
+                </label>
+              </Labelled>
+              <Labelled label={t('tplGen.workflow')} className="sm:col-span-2">
+                <Select
+                  value={draft.workflowId ?? ''}
+                  onChange={(e) => setDraft({ ...draft, workflowId: e.target.value || null })}
+                  className="h-8"
+                >
+                  <option value="">{t('tplGen.defaultWorkflow')}</option>
+                  {workflows.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} · {t('wf.steps', { count: w.steps })}
+                    </option>
+                  ))}
+                </Select>
+              </Labelled>
               <Labelled label={t('tplGen.titlePattern')} className="sm:col-span-2">
                 <Input
                   value={draft.titlePattern}
@@ -322,6 +358,13 @@ export function TemplateStudio({
                 />
               </Labelled>
             </div>
+
+            <p className="text-[11px] leading-relaxed text-text-subtle">{t('tplGen.workflowNote')}</p>
+            {draft.amountField && !draft.amountCommitsBudget && (
+              <p className="rounded-[var(--radius-control)] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
+                {t('tplGen.referenceOnlyNote')}
+              </p>
+            )}
 
             <p className="rounded-[var(--radius-control)] border border-border-subtle bg-surface-sunken px-3 py-2 text-[11px] text-text-muted">
               {t('tplGen.titlePreview')}{' '}

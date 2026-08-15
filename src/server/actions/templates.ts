@@ -48,6 +48,7 @@ export async function createTemplateRequestAction(
         titlePattern: template.titlePattern,
         name: locale === 'ko' ? template.nameKo : template.nameEn,
         amountField: template.amountField,
+        amountCommitsBudget: template.amountCommitsBudget,
         workflowId: template.workflowId,
       },
       checked.values,

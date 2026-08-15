@@ -19,6 +19,7 @@ export interface FormTemplate {
   keywords: string[];
   titlePattern: string;
   amountField: string | null;
+  amountCommitsBudget: boolean;
   workflowId: string | null;
   isActive: boolean;
   createdByAi: boolean;
