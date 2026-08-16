@@ -43,6 +43,13 @@
       "when": 1786798794413,
       "tag": "0005_illegal_captain_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786841794561,
+      "tag": "0006_icy_thunderbolts",
+      "breakpoints": true
     }
   ]
 }

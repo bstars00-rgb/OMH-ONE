@@ -46,6 +46,7 @@ async function run<T>(
   raw: unknown,
   create: (input: T) => Promise<{ id: string; requestNumber: string }>,
   submitNow: boolean,
+  extraApproverIds: string[] = [],
 ): Promise<CreateResult> {
   try {
     const session = await requireSession();
@@ -65,7 +66,7 @@ async function run<T>(
     const created = await create(parsed.data);
 
     if (submitNow) {
-      await submitRequest(session, created.id);
+      await submitRequest(session, created.id, extraApproverIds);
       await getOrCreateReview(created.id, { locale });
     }
 
@@ -91,33 +92,50 @@ async function run<T>(
   }
 }
 
-export async function createLeaveAction(raw: unknown, submitNow: boolean): Promise<CreateResult> {
+export async function createLeaveAction(
+  raw: unknown,
+  submitNow: boolean,
+  extraApproverIds: string[] = [],
+): Promise<CreateResult> {
   const session = await requireSession();
-  return run(leaveSchema, raw, (input) => createLeave(session, input), submitNow);
+  return run(leaveSchema, raw, (input) => createLeave(session, input), submitNow, extraApproverIds);
 }
 
-export async function createTripAction(raw: unknown, submitNow: boolean): Promise<CreateResult> {
+export async function createTripAction(
+  raw: unknown,
+  submitNow: boolean,
+  extraApproverIds: string[] = [],
+): Promise<CreateResult> {
   const session = await requireSession();
-  return run(tripSchema, raw, (input) => createTrip(session, input), submitNow);
+  return run(tripSchema, raw, (input) => createTrip(session, input), submitNow, extraApproverIds);
 }
 
-export async function createPurchaseAction(raw: unknown, submitNow: boolean): Promise<CreateResult> {
+export async function createPurchaseAction(
+  raw: unknown,
+  submitNow: boolean,
+  extraApproverIds: string[] = [],
+): Promise<CreateResult> {
   const session = await requireSession();
-  return run(purchaseSchema, raw, (input) => createPurchase(session, input), submitNow);
+  return run(purchaseSchema, raw, (input) => createPurchase(session, input), submitNow, extraApproverIds);
 }
 
-export async function createExpenseAction(raw: unknown, submitNow: boolean): Promise<CreateResult> {
+export async function createExpenseAction(
+  raw: unknown,
+  submitNow: boolean,
+  extraApproverIds: string[] = [],
+): Promise<CreateResult> {
   const session = await requireSession();
-  return run(expenseSchema, raw, (input) => createExpense(session, input), submitNow);
+  return run(expenseSchema, raw, (input) => createExpense(session, input), submitNow, extraApproverIds);
 }
 
 export async function createGenericAction(
   type: 'HR' | 'GENERAL',
   raw: unknown,
   submitNow: boolean,
+  extraApproverIds: string[] = [],
 ): Promise<CreateResult> {
   const session = await requireSession();
-  return run(genericSchema, raw, (input) => createGeneric(session, type, input), submitNow);
+  return run(genericSchema, raw, (input) => createGeneric(session, type, input), submitNow, extraApproverIds);
 }
 
 export async function goToRequest(requestId: string): Promise<void> {

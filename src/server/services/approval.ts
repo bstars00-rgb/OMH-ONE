@@ -19,6 +19,7 @@ import {
 } from '@/lib/db/schema';
 import { EXECUTIVE_SETTING_KEYS } from '@/types/domain';
 import {
+  appendExtraApprovers,
   canTransition,
   materializeSteps,
   scorePriority,
@@ -146,7 +147,11 @@ async function approverDirectory(tx: Tx, requesterId: string) {
 /* Submit                                                              */
 /* ------------------------------------------------------------------ */
 
-export async function submitRequest(session: SessionUser, requestId: string) {
+export async function submitRequest(
+  session: SessionUser,
+  requestId: string,
+  extraApproverIds: string[] = [],
+) {
   const db = await ready();
 
   return db.transaction(async (tx) => {
@@ -211,11 +216,14 @@ export async function submitRequest(session: SessionUser, requestId: string) {
       .where(eq(approvalWorkflowSteps.workflowId, workflow.id))
       .orderBy(asc(approvalWorkflowSteps.stepOrder));
 
-    const chain = materializeSteps(
+    const autoChain = materializeSteps(
       templates.map((t) => ({
         stepOrder: t.stepOrder,
         name: t.name,
         approverRole: t.approverRole,
+        // Without this a named approver silently fell back to its role, which
+        // made the whole "specific person" option in the builder decorative.
+        approverEmployeeId: t.approverEmployeeId,
         slaHours: t.slaHours,
         conditionType: t.conditionType,
         conditionValue: t.conditionValue,
@@ -224,9 +232,19 @@ export async function submitRequest(session: SessionUser, requestId: string) {
       dir,
     );
 
-    if (chain.length === 0) {
+    if (autoChain.length === 0) {
       throw new WorkflowError('wfError.noApprover');
     }
+
+    /*
+     * Approvers the requester added on top of the derived route.
+     *
+     * They can only be appended, never substituted for a required step: a
+     * requester choosing who approves their own request is how an approval
+     * system stops being a control. Adding a reviewer is safe — it makes the
+     * request harder to pass, not easier.
+     */
+    const chain = appendExtraApprovers(autoChain, extraApproverIds, req.requesterId);
 
     // Resubmitting a RETURNED request rebuilds the chain from step 1; the prior
     // attempt stays in approval_actions, so the history is not lost.
@@ -246,6 +264,7 @@ export async function submitRequest(session: SessionUser, requestId: string) {
         slaHours: s.slaHours,
         dueAt: i === 0 ? firstDue : null,
         startedAt: i === 0 ? now : null,
+        addedByRequester: s.addedByRequester ?? false,
       })),
     );
 

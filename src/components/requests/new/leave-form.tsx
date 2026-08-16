@@ -4,6 +4,7 @@ import * as React from 'react';
 import { CalendarDays, Info } from 'lucide-react';
 import { Card, CardBody, CardHeader, Checkbox, Field, Input, Select, Textarea, Progress } from '@/components/ui/primitives';
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
+import { ChainPicker } from './chain-picker';
 import { createLeaveAction } from '@/server/actions/create';
 import { calcWorkingDays, toISODate } from '@/lib/dates';
 import { useI18n } from '@/lib/i18n/client';
@@ -30,6 +31,7 @@ export function LeaveForm({
   const [handoverTo, setHandoverTo] = React.useState('');
 
   const { pending, result, errors, run } = useCreateForm();
+  const [extraApprovers, setExtraApprovers] = React.useState<string[]>([]);
 
   // Working days are computed live, using the same calculator the server uses —
   // the user should never be surprised by the number after submitting.
@@ -145,8 +147,8 @@ export function LeaveForm({
         <FieldError id="form-error" message={errors._form} />
 
         <FormActions
-          onSave={() => run((submitNow) => createLeaveAction(payload(), submitNow), false)}
-          onSubmit={() => run((submitNow) => createLeaveAction(payload(), submitNow), true)}
+          onSave={() => run((submitNow) => createLeaveAction(payload(), submitNow, extraApprovers), false)}
+          onSubmit={() => run((submitNow) => createLeaveAction(payload(), submitNow, extraApprovers), true)}
           pending={pending}
           result={result}
           disabled={!startDate || !endDate}
@@ -155,6 +157,12 @@ export function LeaveForm({
 
       {/* Live calculation panel — this is the "AI does the arithmetic" promise, visible */}
       <aside className="space-y-4">
+        <ChainPicker
+          facts={{ requestType: 'LEAVE', days: calc?.workingDays ?? 0 }}
+          colleagues={data.colleagues}
+          extraApproverIds={extraApprovers}
+          onChange={setExtraApprovers}
+        />
         <Card>
           <CardHeader title={t('leave.yourBalance')} />
           <CardBody className="space-y-3">

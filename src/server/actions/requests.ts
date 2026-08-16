@@ -91,11 +91,14 @@ export async function returnRequestAction(requestId: string, comment: string): P
   }
 }
 
-export async function submitRequestAction(requestId: string): Promise<ActionResult> {
+export async function submitRequestAction(
+  requestId: string,
+  extraApproverIds: string[] = [],
+): Promise<ActionResult> {
   try {
     const session = await requireSession();
     assertCan(session, 'request.create');
-    const result = await submitRequest(session, requestId);
+    const result = await submitRequest(session, requestId, extraApproverIds);
     // Regenerate immediately so the request arrives in the approver's inbox with
     // a risk level already attached.
     await invalidateAiReview(requestId);

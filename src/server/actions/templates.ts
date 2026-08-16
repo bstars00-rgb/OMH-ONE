@@ -23,6 +23,7 @@ export async function createTemplateRequestAction(
   templateId: string,
   raw: Record<string, unknown>,
   submitNow: boolean,
+  extraApproverIds: string[] = [],
 ): Promise<CreateResult> {
   try {
     const session = await requireSession();
@@ -55,7 +56,7 @@ export async function createTemplateRequestAction(
     );
 
     if (submitNow) {
-      await submitRequest(session, created.id);
+      await submitRequest(session, created.id, extraApproverIds);
       await invalidateAiReview(created.id);
       await getOrCreateReview(created.id, { locale });
     }

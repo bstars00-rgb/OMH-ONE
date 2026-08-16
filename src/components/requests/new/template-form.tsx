@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Card, CardBody, CardHeader, Checkbox, Field, Input, Select, Textarea } from '@/components/ui/primitives';
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
+import { ChainPicker } from './chain-picker';
 import { createTemplateRequestAction } from '@/server/actions/templates';
 import { useI18n } from '@/lib/i18n/client';
 import { buildTitle, type TemplateField } from '@/lib/validation/templates';
@@ -38,6 +39,7 @@ export function TemplateForm({ template, colleagues }: { template: TemplateDto; 
   );
 
   const { pending, result, errors, run } = useCreateForm();
+  const [extraApprovers, setExtraApprovers] = React.useState<string[]>([]);
 
   function set(key: string, value: unknown) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -134,15 +136,25 @@ export function TemplateForm({ template, colleagues }: { template: TemplateDto; 
         <FieldError id="form-error" message={errors._form} />
 
         <FormActions
-          onSave={() => run((s) => createTemplateRequestAction(template.id, values, s), false)}
-          onSubmit={() => run((s) => createTemplateRequestAction(template.id, values, s), true)}
+          onSave={() => run((s) => createTemplateRequestAction(template.id, values, s, extraApprovers), false)}
+          onSubmit={() => run((s) => createTemplateRequestAction(template.id, values, s, extraApprovers), true)}
           pending={pending}
           result={result}
           disabled={incomplete}
         />
       </div>
 
-      <aside>
+      <aside className="space-y-4">
+        <ChainPicker
+          facts={{
+            requestType: 'GENERAL',
+            templateId: template.id,
+            amountBase: template.amountField ? Number(values[template.amountField]) || 0 : 0,
+          }}
+          colleagues={colleagues}
+          extraApproverIds={extraApprovers}
+          onChange={setExtraApprovers}
+        />
         <Card className="sticky top-20">
           <CardHeader title={t('tpl.preview')} description={t('tpl.previewSub')} />
           <CardBody className="space-y-2 text-xs">

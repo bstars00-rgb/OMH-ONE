@@ -354,6 +354,13 @@ export const approvalSteps = pgTable(
     approverId: uuid('approver_id').references(() => employees.id),
     status: text('status').notNull().default('PENDING'), // PENDING | IN_REVIEW | APPROVED | REJECTED | RETURNED | SKIPPED
     slaHours: integer('sla_hours').notNull().default(24),
+    /**
+     * True when the requester nominated this approver rather than the workflow
+     * deriving it. Shown in the chain so an approver knows why they are on it,
+     * and kept for audit — a requester adding reviewers is legitimate, but it
+     * should be visible that they did.
+     */
+    addedByRequester: boolean('added_by_requester').notNull().default(false),
     dueAt: timestamp('due_at', { withTimezone: true }),
     startedAt: timestamp('started_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),

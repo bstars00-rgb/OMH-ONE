@@ -35,6 +35,26 @@ export const forms: MessageTable = {
   'pick.cat.DOCUMENT': { en: 'Documents', ko: '문서' },
   'pick.cat.GENERAL': { en: 'General', ko: '일반' },
 
+  /* --- approval chain preview --- */
+  'chain.title': { en: 'Approval route', ko: '결재선' },
+  'chain.subtitle': {
+    en: 'Who will decide this, worked out from the org chart as you fill the form.',
+    ko: '입력하는 내용에 따라 조직도에서 결재자가 결정됩니다.',
+  },
+  'chain.resolving': { en: 'Working out the route…', ko: '결재선을 계산하는 중…' },
+  'chain.previewFailed': { en: 'Could not work out the route. Submitting still applies the correct one.', ko: '결재선을 미리 계산하지 못했습니다. 상신 시에는 정상 적용됩니다.' },
+  'chain.addApprover': { en: 'Add an approver', ko: '결재자 추가' },
+  'chain.youAdded': { en: 'You added this approver', ko: '기안자가 추가한 결재자' },
+  'chain.remove': { en: 'Remove {name}', ko: '{name} 제외' },
+  'chain.lockedHint': {
+    en: 'Set by the workflow and your org chart. It updates itself when people change roles.',
+    ko: '결재선 설정과 조직도에서 자동 결정됩니다. 인사이동 시 자동으로 반영됩니다.',
+  },
+  'chain.note': {
+    en: 'Added approvers go at the end. Required steps cannot be removed — an approval route you could edit freely would not be a control.',
+    ko: '추가한 결재자는 마지막에 붙습니다. 필수 단계는 제외할 수 없습니다 — 기안자가 마음대로 바꿀 수 있으면 통제 장치가 아니게 됩니다.',
+  },
+
   /* --- form templates --- */
   'tpl.notFound': { en: 'That form is not available to you.', ko: '사용할 수 없는 양식입니다.' },
   'tpl.choose': { en: 'Choose…', ko: '선택하세요…' },

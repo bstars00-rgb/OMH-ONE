@@ -1,0 +1,1 @@
+ALTER TABLE "approval_steps" ADD COLUMN "added_by_requester" boolean DEFAULT false NOT NULL;

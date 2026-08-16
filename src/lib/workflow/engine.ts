@@ -51,6 +51,8 @@ export interface MaterializedStep {
   approverRole: string;
   approverId: string | null;
   slaHours: number;
+  /** Added by the requester rather than derived from the workflow. */
+  addedByRequester?: boolean;
 }
 
 export function conditionHolds(step: WorkflowStepTemplate, facts: RequestFacts): boolean {
@@ -135,6 +137,46 @@ export function materializeSteps(
   }
 
   return out;
+}
+
+/**
+ * Appends approvers the requester nominated to the derived route.
+ *
+ * Append only, and only after the required steps. A requester may make their
+ * own request harder to approve — asking a second director to look at it — but
+ * never easier: substituting a required approver for a friendlier one is
+ * exactly what an approval chain exists to prevent.
+ *
+ * The same normalization applies as for derived steps: the requester cannot add
+ * themselves, cannot add someone already in the chain, and two adjacent
+ * duplicates collapse.
+ */
+export function appendExtraApprovers(
+  chain: MaterializedStep[],
+  extraApproverIds: string[],
+  requesterId: string,
+  slaHours = 24,
+): MaterializedStep[] {
+  const out = [...chain];
+  const present = new Set(chain.map((s) => s.approverId).filter(Boolean) as string[]);
+
+  for (const approverId of extraApproverIds) {
+    if (!approverId || approverId === requesterId) continue;
+    if (present.has(approverId)) continue;
+    present.add(approverId);
+    out.push({
+      stepOrder: out.length + 1,
+      // The display name, not the key: callers translate it as `step.${name}`,
+      // matching how the seeded step names work.
+      name: 'Additional Approver',
+      approverRole: 'ADDITIONAL',
+      approverId,
+      slaHours,
+      addedByRequester: true,
+    });
+  }
+
+  return out.map((s, i) => ({ ...s, stepOrder: i + 1 }));
 }
 
 /* ------------------------------------------------------------------ */
