@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Save, ShieldCheck } from 'lucide-react';
+import { Loader2, Save, ShieldCheck, Trash2 } from 'lucide-react';
 import { Badge, Button, Card, CardBody, CardHeader, Checkbox, Input, Select, Textarea } from '@/components/ui/primitives';
-import { savePolicyAction, type AdminResult } from '@/server/actions/admin';
+import { deletePolicyAction, savePolicyAction, type AdminResult } from '@/server/actions/admin';
 import { useI18n } from '@/lib/i18n/client';
 import { cn, humanize } from '@/lib/utils';
 
@@ -50,6 +50,18 @@ export function PolicyEditor({ policy }: { policy: PolicyDto }) {
   const unit = METRIC_UNIT[policy.metric] ?? '';
   const numericMetric = unit !== '';
 
+  const name = tOr(`policyName.${policy.code}`, policy.name);
+
+  async function remove() {
+    if (!window.confirm(t('pol.confirmDelete', { name }))) return;
+    setPending(true);
+    setResult(null);
+    const res = await deletePolicyAction(policy.id);
+    setPending(false);
+    setResult(res);
+    if (res.ok) router.refresh();
+  }
+
   async function save() {
     setPending(true);
     setResult(null);
@@ -80,6 +92,15 @@ export function PolicyEditor({ policy }: { policy: PolicyDto }) {
             <Button size="sm" variant={dirty ? 'primary' : 'secondary'} disabled={!dirty || pending} onClick={save}>
               {pending ? <Loader2 className="animate-spin" /> : <Save />}
               {t('action.save')}
+            </Button>
+            <Button
+              size="iconSm"
+              variant="ghost"
+              disabled={pending}
+              aria-label={t('pol.deleteRow', { name })}
+              onClick={remove}
+            >
+              <Trash2 />
             </Button>
           </span>
         }

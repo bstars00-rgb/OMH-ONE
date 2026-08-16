@@ -7,6 +7,7 @@ import { policies } from '@/lib/db/schema';
 import { PageHeader } from '@/components/page-header';
 import { ForbiddenPage } from '@/components/ui/states';
 import { PolicyEditor, type PolicyDto } from '@/components/admin/policy-editor';
+import { PolicyCreator } from '@/components/admin/policy-creator';
 import { getI18n, getT } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -24,10 +25,7 @@ export default async function PoliciesPage() {
 
   return (
     <>
-      <PageHeader
-        title={t('pol.title')}
-        description={t('pol.subtitle')}
-      />
+      <PageHeader title={t('pol.title')} description={t('pol.subtitle')} actions={<PolicyCreator />} />
 
       <div className="grid gap-4 xl:grid-cols-2">
         {rows.map((p) => (

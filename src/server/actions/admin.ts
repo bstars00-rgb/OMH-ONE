@@ -10,6 +10,7 @@ import { approvalWorkflowSteps, approvalWorkflows, policies, systemSettings, use
 import { recordAudit } from '@/server/audit';
 import { getT } from '@/lib/i18n/server';
 import type { Vars } from '@/lib/i18n/types';
+import { metricTakesThreshold, newPolicySchema } from '@/lib/validation/policies';
 import { APPROVER_ROLES, ROLES } from '@/types/domain';
 
 export interface AdminResult {
@@ -164,6 +165,93 @@ export async function savePolicyAction(raw: unknown): Promise<AdminResult> {
 
     revalidatePath('/admin/policies');
     return say(true, 'pol.saved', { name: existing.name });
+  } catch (err) {
+    return await fail(err);
+  }
+}
+
+/**
+ * Adds a policy.
+ *
+ * The metric is chosen from the branches the evaluator actually implements, and
+ * the request type from the ones that carry that metric's facts — see
+ * lib/validation/policies.ts. Anything else would store a rule that is listed
+ * on this page and never fires.
+ */
+export async function createPolicyAction(raw: unknown): Promise<AdminResult> {
+  try {
+    const session = await requireSession();
+    assertCan(session, 'admin.policy');
+
+    const parsed = newPolicySchema.safeParse(raw);
+    if (!parsed.success) return say(false, parsed.error.issues[0]?.message ?? 'pol.checkValues');
+    const { code, name, metric, appliesTo, threshold, severity, message, isActive } = parsed.data;
+
+    const db = await ready();
+    const [clash] = await db.select({ id: policies.id }).from(policies).where(eq(policies.code, code)).limit(1);
+    if (clash) return say(false, 'pol.codeTaken', { code });
+
+    const [created] = await db
+      .insert(policies)
+      .values({
+        code,
+        name,
+        metric,
+        appliesTo,
+        operator: metric === 'FLIGHT_CLASS' ? 'REQUIRES' : 'LTE',
+        threshold: metricTakesThreshold(metric) && threshold != null ? String(threshold) : null,
+        severity,
+        message,
+        isActive,
+      })
+      .returning();
+
+    await recordAudit(db, {
+      action: 'POLICY_CHANGE',
+      entityType: 'policy',
+      entityId: created.code,
+      actorId: session.employeeId,
+      actorEmail: session.email,
+      summary: `Policy ${code} created`,
+      metadata: { name, metric, appliesTo, threshold, severity, isActive },
+    });
+
+    revalidatePath('/admin/policies');
+    return say(true, 'pol.created', { name });
+  } catch (err) {
+    return await fail(err);
+  }
+}
+
+/**
+ * Deletes a policy.
+ *
+ * Safe to delete outright: analyses store their checks as text on the request,
+ * so removing the rule does not rewrite what an approver was shown at the time.
+ * Deactivating instead is the softer option and stays one checkbox away.
+ */
+export async function deletePolicyAction(policyId: string): Promise<AdminResult> {
+  try {
+    const session = await requireSession();
+    assertCan(session, 'admin.policy');
+
+    const db = await ready();
+    const [target] = await db.select().from(policies).where(eq(policies.id, policyId)).limit(1);
+    if (!target) return say(false, 'pol.notFound');
+
+    await db.delete(policies).where(eq(policies.id, policyId));
+    await recordAudit(db, {
+      action: 'POLICY_CHANGE',
+      entityType: 'policy',
+      entityId: target.code,
+      actorId: session.employeeId,
+      actorEmail: session.email,
+      summary: `Policy ${target.code} deleted`,
+      metadata: { name: target.name, metric: target.metric, threshold: target.threshold, severity: target.severity },
+    });
+
+    revalidatePath('/admin/policies');
+    return say(true, 'pol.deleted', { name: target.name });
   } catch (err) {
     return await fail(err);
   }

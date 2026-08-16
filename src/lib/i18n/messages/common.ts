@@ -109,6 +109,7 @@ export const common: MessageTable = {
   'label.notSelected': { en: 'Not selected', ko: '선택 안 함' },
   'label.notAssigned': { en: 'Not assigned', ko: '미지정' },
   'label.none': { en: 'None', ko: '없음' },
+  'label.choose': { en: 'Choose…', ko: '선택하세요…' },
   'label.optional': { en: 'Optional', ko: '선택' },
   'label.quantity': { en: 'Qty', ko: '수량' },
   'label.unitPrice': { en: 'Unit price', ko: '단가' },
