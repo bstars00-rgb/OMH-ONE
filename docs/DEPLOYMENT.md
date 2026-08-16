@@ -66,19 +66,34 @@ Data survives restarts and multiple instances share one database.
 
 ---
 
-## Option 2 — GitHub Codespaces
+## Option 2 — GitHub Codespaces (one click, nothing to configure)
 
-Runs the real application in a browser, from the repository, with no deployment and no account beyond GitHub.
+Runs the real application from the repository, in a browser, with no deployment
+and no account beyond GitHub.
 
-1. Open the repo → green **Code** button → **Codespaces** → **Create codespace on main**
-2. Wait for setup. `.devcontainer/devcontainer.json` installs dependencies and seeds the database automatically.
-3. Run:
-   ```bash
-   npm run dev
-   ```
-4. Codespaces forwards port 3000 and opens a preview. Sign in with the demo accounts.
+**[Open in Codespaces](https://codespaces.new/bstars00-rgb/OMH-ONE?quickstart=1)** — or
+the repo's green **Code** button → **Codespaces** → **Create codespace on main**.
 
-Useful for showing the prototype to someone without deploying anything.
+`.devcontainer/devcontainer.json` does the rest:
+
+| When | What |
+|---|---|
+| On create | `npm ci`, migrations, and the 453-request seed |
+| On every start | `npm run dev`, detached, logging to `/tmp/ohmy-one.log` |
+| Once listening | Port 3000 forwarded **publicly** and opened in a preview tab |
+
+First boot takes a couple of minutes; reopening a stopped Codespace is
+immediate, because the seeded database persists in the container volume.
+
+The forwarded URL is public, so it can be shared with someone who is not signed
+in to your GitHub account — which is the point of a demo link. To make it
+private again: **Ports** panel → right-click 3000 → **Port Visibility → Private**.
+
+Logs, if the app does not appear:
+
+```bash
+tail -f /tmp/ohmy-one.log
+```
 
 ---
 
@@ -92,6 +107,30 @@ npm run dev
 ```
 
 <http://localhost:3000> — the database is created and seeded on first boot.
+
+---
+
+## Deploying from GitHub automatically
+
+`.github/workflows/deploy.yml` publishes to Vercel on every push to `main`. It
+skips itself — green, not failing — until three repository secrets exist, so the
+repo stays clean before anyone connects an account.
+
+**Settings → Secrets and variables → Actions → New repository secret:**
+
+| Secret | Where to find it |
+|---|---|
+| `VERCEL_TOKEN` | <https://vercel.com/account/tokens> → Create |
+| `VERCEL_ORG_ID` | Vercel project → Settings → General → **Team ID** |
+| `VERCEL_PROJECT_ID` | Vercel project → Settings → General → **Project ID** |
+
+The last two also appear in `.vercel/project.json` after running `vercel link`
+locally. Once all three are set, the next push deploys and the run summary shows
+the URL.
+
+Environment variables for the app itself (`AUTH_SECRET`, `DATABASE_URL`,
+`AUTO_SEED`) are set in the Vercel project, not as GitHub secrets — the
+workflow builds and uploads, Vercel supplies the runtime environment.
 
 ---
 

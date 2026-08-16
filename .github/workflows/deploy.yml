@@ -1,0 +1,76 @@
+name: Deploy
+
+# Publishes the app to Vercel on every push to main.
+#
+# Vercel rather than GitHub Pages because Pages serves static files only: this
+# app has no static routes at all — every page reads the database per request,
+# and sign-in, approvals and the AI layer are server actions. A static export
+# would be a different, much smaller application.
+#
+# The job is skipped, not failed, until the three secrets exist, so the repo
+# stays green before anyone has connected a Vercel account.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vercel:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check credentials
+        id: check
+        run: |
+          if [ -n "${{ secrets.VERCEL_TOKEN }}" ] \
+            && [ -n "${{ secrets.VERCEL_ORG_ID }}" ] \
+            && [ -n "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Deploy skipped::Add VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID to repository secrets to enable deployment. See docs/DEPLOYMENT.md."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Vercel CLI
+        if: steps.check.outputs.ready == 'true'
+        run: npm install --global vercel@latest
+
+      - name: Pull environment
+        if: steps.check.outputs.ready == 'true'
+        run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build
+        if: steps.check.outputs.ready == 'true'
+        run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy
+        if: steps.check.outputs.ready == 'true'
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### Deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "$url" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

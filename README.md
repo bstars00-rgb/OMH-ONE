@@ -6,9 +6,18 @@ An AI-native approval, HR, expense, procurement and business-trip platform, buil
 
 > **Prototype.** Every employee, vendor and figure in the seeded dataset is fictional.
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/bstars00-rgb/OMH-ONE?quickstart=1)
+
 ---
 
-## Run it
+## See it running
+
+**From GitHub, no local setup:** click the badge above. A Codespace installs the
+dependencies, creates the database, seeds twelve months of demo data and starts
+the app — then opens it on a shareable URL. First boot takes a couple of minutes;
+reopening is instant.
+
+**Locally:**
 
 ```bash
 npm install
@@ -18,6 +27,15 @@ npm run dev
 Open <http://localhost:3000> and sign in with any account below (password `demo1234`).
 
 That is the whole setup. There is no database to install, no container to start, and no API key to obtain — the first boot creates an embedded PostgreSQL database, applies the migrations and seeds twelve months of demo data automatically.
+
+### Why not GitHub Pages
+
+Pages serves static files, with no server process. This app has no static routes:
+all 28 render per request, sign-in is a cookie-backed server session, and
+approvals, the form builder and the AI layer are server actions against a live
+database. Publishing it to Pages would mean deleting the parts that make it an
+ERP. Codespaces runs the real thing; `.github/workflows/deploy.yml` publishes to
+Vercel once the three secrets in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) exist.
 
 ### Demo accounts
 

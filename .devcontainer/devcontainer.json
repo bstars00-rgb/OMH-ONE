@@ -1,22 +1,48 @@
 {
   "name": "OHMY ONE",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
+
+  // Install and build the database once, when the Codespace is created.
+  // Seeding takes about a minute; doing it here rather than on every start
+  // means reopening a Codespace is instant.
   "postCreateCommand": "npm ci && npm run db:setup",
+
+  // Start the app every time the Codespace starts, including after a stop.
+  // Detached, with a log the user can tail, so the terminal stays usable.
+  "postStartCommand": "nohup npm run dev > /tmp/ohmy-one.log 2>&1 &",
+
   "forwardPorts": [3000],
   "portsAttributes": {
     "3000": {
       "label": "OHMY ONE",
-      "onAutoForward": "openPreview"
+      "onAutoForward": "openPreview",
+      // Public so the forwarded URL can be shared with people who are not
+      // signed in to this GitHub account — the point of a demo link.
+      "visibility": "public"
     }
   },
+
   "customizations": {
     "vscode": {
       "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode", "bradlc.vscode-tailwindcss"]
+    },
+    "codespaces": {
+      "openFiles": ["README.md"]
     }
   },
+
   "remoteEnv": {
-    "AUTH_SECRET": "codespaces-development-secret",
+    // Development-only values. The real secret is generated per environment on
+    // a hosted deploy; this one exists so a Codespace boots without setup.
+    "AUTH_SECRET": "codespaces-development-secret-not-for-production",
     "DB_DRIVER": "pglite",
-    "AI_PROVIDER": "mock"
+    "AI_PROVIDER": "mock",
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+
+  // 4 cores keeps the first build and the 453-request seed comfortable.
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
   }
 }
