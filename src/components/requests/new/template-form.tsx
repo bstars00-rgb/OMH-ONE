@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Card, CardBody, CardHeader, Checkbox, Field, Input, Select, Textarea } from '@/components/ui/primitives';
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
-import { ChainPicker } from './chain-picker';
+import { ChainPicker, type LineOption } from './chain-picker';
 import { createTemplateRequestAction } from '@/server/actions/templates';
 import { useI18n } from '@/lib/i18n/client';
 import { buildTitle, type TemplateField } from '@/lib/validation/templates';
@@ -30,7 +30,15 @@ export interface TemplateDto {
  * receipts for duplicates. Everything else is labelled inputs plus an approval
  * route, and that is what this renders.
  */
-export function TemplateForm({ template, colleagues }: { template: TemplateDto; colleagues: { id: string; name: string }[] }) {
+export function TemplateForm({
+  template,
+  colleagues,
+  lines,
+}: {
+  template: TemplateDto;
+  colleagues: { id: string; name: string }[];
+  lines: LineOption[];
+}) {
   const { t, locale } = useI18n();
   const label = locale === 'ko' ? template.nameKo : template.nameEn;
 
@@ -39,7 +47,8 @@ export function TemplateForm({ template, colleagues }: { template: TemplateDto; 
   );
 
   const { pending, result, errors, run } = useCreateForm();
-  const [extraApprovers, setExtraApprovers] = React.useState<string[]>([]);
+  const [approverIds, setApproverIds] = React.useState<string[]>([]);
+  const [lineId, setLineId] = React.useState<string | null>(null);
 
   function set(key: string, value: unknown) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -136,8 +145,8 @@ export function TemplateForm({ template, colleagues }: { template: TemplateDto; 
         <FieldError id="form-error" message={errors._form} />
 
         <FormActions
-          onSave={() => run((s) => createTemplateRequestAction(template.id, values, s, extraApprovers), false)}
-          onSubmit={() => run((s) => createTemplateRequestAction(template.id, values, s, extraApprovers), true)}
+          onSave={() => run((s) => createTemplateRequestAction(template.id, values, s, { approverIds, approvalLineId: lineId }), false)}
+          onSubmit={() => run((s) => createTemplateRequestAction(template.id, values, s, { approverIds, approvalLineId: lineId }), true)}
           pending={pending}
           result={result}
           disabled={incomplete}
@@ -152,8 +161,10 @@ export function TemplateForm({ template, colleagues }: { template: TemplateDto; 
             amountBase: template.amountField ? Number(values[template.amountField]) || 0 : 0,
           }}
           colleagues={colleagues}
-          extraApproverIds={extraApprovers}
-          onChange={setExtraApprovers}
+          lines={lines}
+          value={approverIds}
+          onChange={setApproverIds}
+          onLineChange={setLineId}
         />
         <Card className="sticky top-20">
           <CardHeader title={t('tpl.preview')} description={t('tpl.previewSub')} />

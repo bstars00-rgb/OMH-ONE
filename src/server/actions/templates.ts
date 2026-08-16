@@ -5,7 +5,7 @@ import { requireSession } from '@/lib/auth/session';
 import { assertCan, PermissionError } from '@/lib/rbac';
 import { WorkflowError } from '@/lib/workflow/engine';
 import { ValidationError, createFromTemplate } from '@/server/services/create-request';
-import { submitRequest } from '@/server/services/approval';
+import { submitRequest, type SubmitOptions } from '@/server/services/approval';
 import { getTemplate } from '@/server/queries/templates';
 import { getOrCreateReview, invalidateAiReview } from '@/lib/ai/review';
 import { validateValues } from '@/lib/validation/templates';
@@ -23,7 +23,7 @@ export async function createTemplateRequestAction(
   templateId: string,
   raw: Record<string, unknown>,
   submitNow: boolean,
-  extraApproverIds: string[] = [],
+  submitOptions: SubmitOptions = {},
 ): Promise<CreateResult> {
   try {
     const session = await requireSession();
@@ -56,7 +56,7 @@ export async function createTemplateRequestAction(
     );
 
     if (submitNow) {
-      await submitRequest(session, created.id, extraApproverIds);
+      await submitRequest(session, created.id, submitOptions);
       await invalidateAiReview(created.id);
       await getOrCreateReview(created.id, { locale });
     }

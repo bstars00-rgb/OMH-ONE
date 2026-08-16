@@ -46,6 +46,8 @@ import {
   users,
   vendors,
   formTemplates,
+  approvalLines,
+  approvalLineMembers,
 } from '../src/lib/db/schema';
 import type { Database } from '../src/lib/db';
 import { FORM_TEMPLATES } from './template-data';
@@ -1345,6 +1347,73 @@ export async function seed(db: Database) {
     createdAt: ago(46),
   });
   await chunked(db, auditLogs, auditRows);
+
+  /*
+   * Saved approval lines, named the way the company already names them:
+   * 목적_부서 — "휴가계_Global Sales & Marketing", "지출결의_Marketing".
+   *
+   * Members are the department head plus the relevant function, which is what
+   * these lines contain in practice. They are a starting point the requester
+   * edits, not a rule, so seeding plausible ones matters more than seeding
+   * exhaustive ones.
+   */
+  const lineRows: (typeof approvalLines.$inferInsert)[] = [];
+  const lineMemberRows: (typeof approvalLineMembers.$inferInsert)[] = [];
+
+  const headOf = (deptCode: string) => {
+    const dept = DEPARTMENTS.find((d) => d.code === deptCode);
+    const head = EMPLOYEES.find((e) => e.department === deptCode && e.isDeptHead);
+    void dept;
+    return head ? empIds.get(head.code) ?? null : null;
+  };
+  const empIdByCode = (code: string) => empIds.get(code) ?? null;
+
+  const addLine = (
+    name: string,
+    requestType: string | null,
+    deptCode: string | null,
+    memberIds: (string | null)[],
+    order: number,
+  ) => {
+    const members = memberIds.filter(Boolean) as string[];
+    if (members.length === 0) return;
+    const lineId = randomUUID();
+    lineRows.push({
+      id: lineId,
+      name,
+      ownerId: null,
+      officeId: deptCode ? officeIds.get(DEPARTMENTS.find((d) => d.code === deptCode)?.office ?? 'VN') ?? null : null,
+      requestType,
+      departmentId: deptCode ? deptIds.get(deptCode) ?? null : null,
+      sortOrder: order,
+    });
+    members.forEach((employeeId, i) => {
+      lineMemberRows.push({
+        id: randomUUID(),
+        lineId,
+        employeeId,
+        memberType: 'APPROVER',
+        position: i + 1,
+      });
+    });
+  };
+
+  const hrHead = headOf('HR');
+  const finHead = headOf('FIN');
+  const director = empIdByCode('E001');
+
+  for (const dept of DEPARTMENTS) {
+    const head = headOf(dept.code);
+    if (!head) continue;
+    addLine(`휴가계_${dept.name}`, 'LEAVE', dept.code, [head, hrHead], 10);
+    addLine(`지출결의_${dept.name}`, 'PURCHASE', dept.code, [head, finHead, director], 20);
+    addLine(`출장품의_${dept.name}`, 'BUSINESS_TRIP', dept.code, [head, finHead], 30);
+  }
+
+  if (lineRows.length) {
+    await db.insert(approvalLines).values(lineRows);
+    await db.insert(approvalLineMembers).values(lineMemberRows);
+  }
 
   // Form templates. Office-scoped ones resolve their code (JP / KR / …) to an id;
   // a null office means every office may file it.

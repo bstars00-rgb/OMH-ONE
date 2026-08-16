@@ -93,6 +93,7 @@ export const domain: MessageTable = {
   'approverRole.HR': { en: 'HR', ko: '인사팀' },
   'approverRole.FINANCE': { en: 'Finance', ko: '재무팀' },
   'approverRole.DIRECTOR': { en: 'Director', ko: '임원' },
+  'approverRole.LINE': { en: 'From the approval line', ko: '결재라인 지정' },
   'approverRole.ADDITIONAL': { en: 'Added by requester', ko: '기안자 지정' },
   'approverRole.CTO': { en: 'CTO', ko: 'CTO' },
   'approverRole.CEO': { en: 'CEO', ko: 'CEO' },
@@ -102,6 +103,7 @@ export const domain: MessageTable = {
   'step.Department Head': { en: 'Department Head', ko: '부서장 결재' },
   'step.HR Review': { en: 'HR Review', ko: '인사팀 검토' },
   'step.Finance Review': { en: 'Finance Review', ko: '재무팀 검토' },
+  'step.Approval': { en: 'Approval', ko: '결재' },
   'step.Additional Approver': { en: 'Additional Approver', ko: '추가 결재' },
   'step.Director Approval': { en: 'Director Approval', ko: '임원 승인' },
 

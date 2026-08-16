@@ -50,6 +50,13 @@
       "when": 1786841794561,
       "tag": "0006_icy_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786842936589,
+      "tag": "0007_high_molecule_man",
+      "breakpoints": true
     }
   ]
 }

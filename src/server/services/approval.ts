@@ -19,7 +19,6 @@ import {
 } from '@/lib/db/schema';
 import { EXECUTIVE_SETTING_KEYS } from '@/types/domain';
 import {
-  appendExtraApprovers,
   canTransition,
   materializeSteps,
   scorePriority,
@@ -147,11 +146,30 @@ async function approverDirectory(tx: Tx, requesterId: string) {
 /* Submit                                                              */
 /* ------------------------------------------------------------------ */
 
+export interface SubmitOptions {
+  /**
+   * The exact approver order the requester submitted, when they chose or edited
+   * a line. Empty means "use the derived route".
+   *
+   * The requester may edit freely — this is how the company works today, and a
+   * line they cannot adjust sends them back to email for the one request that
+   * does not fit. What the system does instead of forbidding it is record it:
+   * `chainEdited` marks the deviation, so an approver and an auditor can both
+   * see that the route was not the standard one.
+   */
+  approverIds?: string[];
+  /** The saved line it started from, for the audit trail. */
+  approvalLineId?: string | null;
+}
+
 export async function submitRequest(
   session: SessionUser,
   requestId: string,
-  extraApproverIds: string[] = [],
+  options: SubmitOptions | string[] = {},
 ) {
+  // Older call sites passed a bare array of extra approvers.
+  const opts: SubmitOptions = Array.isArray(options) ? { approverIds: undefined } : options;
+  const explicitApprovers = (Array.isArray(options) ? options : (options.approverIds ?? [])).filter(Boolean);
   const db = await ready();
 
   return db.transaction(async (tx) => {
@@ -244,7 +262,46 @@ export async function submitRequest(
      * system stops being a control. Adding a reviewer is safe — it makes the
      * request harder to pass, not easier.
      */
-    const chain = appendExtraApprovers(autoChain, extraApproverIds, req.requesterId);
+    /*
+     * An explicit chain replaces the derived one; otherwise the derived one
+     * stands. Either way the requester never appears on their own chain, and
+     * consecutive duplicates collapse — those two rules are not preferences.
+     */
+    let chain = autoChain;
+    let edited = false;
+
+    if (explicitApprovers.length > 0) {
+      const picked = await tx
+        .select({ id: employees.id, name: employees.name })
+        .from(employees)
+        .where(sql`${employees.id} in ${explicitApprovers}`);
+      const known = new Map(picked.map((e) => [e.id, e.name]));
+
+      const seen = new Set<string>();
+      const built: typeof autoChain = [];
+      for (const approverId of explicitApprovers) {
+        if (!known.has(approverId)) continue;
+        if (approverId === req.requesterId) continue;
+        if (seen.has(approverId)) continue;
+        seen.add(approverId);
+        built.push({
+          stepOrder: built.length + 1,
+          name: 'Approval',
+          approverRole: 'LINE',
+          approverId,
+          slaHours: 24,
+          addedByRequester: true,
+        });
+      }
+
+      if (built.length > 0) {
+        const same =
+          built.length === autoChain.length &&
+          built.every((b, i) => b.approverId === autoChain[i].approverId);
+        chain = built;
+        edited = !same;
+      }
+    }
 
     // Resubmitting a RETURNED request rebuilds the chain from step 1; the prior
     // attempt stays in approval_actions, so the history is not lost.
@@ -279,6 +336,8 @@ export async function submitRequest(
     await tx
       .update(requests)
       .set({
+        approvalLineId: opts.approvalLineId ?? null,
+        chainEdited: edited,
         status: 'SUBMITTED',
         submittedAt: now,
         decidedAt: null,

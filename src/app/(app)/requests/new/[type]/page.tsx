@@ -12,6 +12,7 @@ import { TripForm } from '@/components/requests/new/trip-form';
 import { PurchaseForm } from '@/components/requests/new/purchase-form';
 import { ExpenseForm } from '@/components/requests/new/expense-form';
 import { GenericForm } from '@/components/requests/new/generic-form';
+import { listApprovalLines } from '@/server/queries/approval-lines';
 import {
   getLeaveFormData,
   getLinkableTrips,
@@ -63,7 +64,7 @@ async function FormFor({ type, session }: { type: RequestType; session: Awaited<
     case 'LEAVE': {
       const db = await ready();
       const year = new Date().getUTCFullYear();
-      const [data, holidayRows] = await Promise.all([
+      const [data, holidayRows, lines] = await Promise.all([
         getLeaveFormData(session),
         db
           .select({ holidayDate: holidays.holidayDate, name: holidays.name })
@@ -74,11 +75,13 @@ async function FormFor({ type, session }: { type: RequestType; session: Awaited<
               lte(holidays.holidayDate, `${year + 1}-12-31`),
             ),
           ),
+        listApprovalLines(session, { requestType: 'LEAVE' }),
       ]);
       return (
         <LeaveForm
           data={data}
           holidays={holidayRows.map((h) => ({ holidayDate: String(h.holidayDate), name: h.name }))}
+          lines={lines}
         />
       );
     }

@@ -10,6 +10,7 @@ import {
   decideRequest,
   markStepInReview,
   submitRequest,
+  type SubmitOptions,
 } from '@/server/services/approval';
 import { getOrCreateReview, invalidateAiReview } from '@/lib/ai/review';
 import { getI18n } from '@/lib/i18n/server';
@@ -93,12 +94,12 @@ export async function returnRequestAction(requestId: string, comment: string): P
 
 export async function submitRequestAction(
   requestId: string,
-  extraApproverIds: string[] = [],
+  submitOptions: SubmitOptions = {},
 ): Promise<ActionResult> {
   try {
     const session = await requireSession();
     assertCan(session, 'request.create');
-    const result = await submitRequest(session, requestId, extraApproverIds);
+    const result = await submitRequest(session, requestId, submitOptions);
     // Regenerate immediately so the request arrives in the approver's inbox with
     // a risk level already attached.
     await invalidateAiReview(requestId);

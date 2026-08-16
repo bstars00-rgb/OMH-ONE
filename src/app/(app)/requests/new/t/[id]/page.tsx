@@ -4,6 +4,7 @@ import { requireSession } from '@/lib/auth/session';
 import { can } from '@/lib/rbac';
 import { getTemplate } from '@/server/queries/templates';
 import { getTripFormData } from '@/server/queries/form-context';
+import { listApprovalLines } from '@/server/queries/approval-lines';
 import { PageHeader } from '@/components/page-header';
 import { ForbiddenPage } from '@/components/ui/states';
 import { TemplateForm } from '@/components/requests/new/template-form';
@@ -38,7 +39,10 @@ export default async function NewTemplateRequestPage({ params }: { params: Promi
   if (!template) notFound();
 
   // Reused from the trip form: the same colleague list backs every `employee` field.
-  const { colleagues } = await getTripFormData(session);
+  const [{ colleagues }, lines] = await Promise.all([
+    getTripFormData(session),
+    listApprovalLines(session, { requestType: 'GENERAL' }),
+  ]);
   const label = locale === 'ko' ? template.nameKo : template.nameEn;
 
   return (
@@ -66,6 +70,7 @@ export default async function NewTemplateRequestPage({ params }: { params: Promi
           amountField: template.amountField,
         }}
         colleagues={colleagues.map((c) => ({ id: c.id, name: c.name }))}
+        lines={lines}
       />
     </>
   );

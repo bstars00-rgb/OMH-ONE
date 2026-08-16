@@ -186,6 +186,14 @@ export const requests = pgTable(
      * against requests already in flight.
      */
     commitsBudget: boolean('commits_budget').notNull().default(true),
+    /** The saved line the requester started from, if any. */
+    approvalLineId: uuid('approval_line_id'),
+    /**
+     * True when the submitted chain differs from that line or from the derived
+     * route. Editing is allowed — this only makes the deviation visible, which
+     * is what an audit needs rather than a prohibition.
+     */
+    chainEdited: boolean('chain_edited').notNull().default(false),
     currentStepOrder: integer('current_step_order').notNull().default(0),
     amountBase: numeric('amount_base', { precision: 14, scale: 2 }).notNull().default('0'),
     currency: text('currency').notNull().default('USD'),
@@ -294,6 +302,71 @@ export const formTemplates = pgTable(
     index('form_templates_office_idx').on(t.officeId),
     index('form_templates_category_idx').on(t.category),
   ],
+);
+
+/**
+ * A saved approval line: a named, ordered list of people.
+ *
+ * This is how the company already works — lines are named 목적_부서
+ * ("휴가계_Global Sales & Marketing", "지출결의_Marketing"), the requester picks
+ * one, and it fills the approver row. It solves the problem a derived route
+ * cannot: the same team files the same kind of request every week and should
+ * not re-pick five people each time, but they also need to deviate for one
+ * request without an administrator being involved.
+ *
+ * Two scopes share the table. `ownerId` null means an organization line every
+ * relevant person can use; `ownerId` set means a personal line — the
+ * "My결재라인" of the groupware this replaces — visible only to its owner.
+ *
+ * A line is a *starting point*, not a constraint. Whatever the requester ends
+ * up submitting is what materializes; `requests.chainEdited` records whether
+ * they changed it, so an auditor can see the deviation without the system
+ * having to forbid it.
+ */
+export const approvalLines = pgTable(
+  'approval_lines',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    /** Null for an organization line; an employee id for a personal one. */
+    ownerId: uuid('owner_id').references(() => employees.id, { onDelete: 'cascade' }),
+    officeId: uuid('office_id').references(() => offices.id, { onDelete: 'cascade' }),
+    /** Null means the line suits any request type. */
+    requestType: text('request_type'),
+    departmentId: uuid('department_id').references(() => departments.id, { onDelete: 'set null' }),
+    isActive: boolean('is_active').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(100),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('approval_lines_owner_idx').on(t.ownerId),
+    index('approval_lines_office_idx').on(t.officeId),
+    index('approval_lines_type_idx').on(t.requestType),
+  ],
+);
+
+/**
+ * Who is on a line, and in what capacity.
+ *
+ * `APPROVER` decides. `CC` (참조자) and `SHARE` (공유자) are told about the
+ * request and may read it, but hold no decision — the distinction the previous
+ * system draws and the reason a single list of people is not enough.
+ */
+export const approvalLineMembers = pgTable(
+  'approval_line_members',
+  {
+    id: id(),
+    lineId: uuid('line_id')
+      .notNull()
+      .references(() => approvalLines.id, { onDelete: 'cascade' }),
+    employeeId: uuid('employee_id')
+      .notNull()
+      .references(() => employees.id, { onDelete: 'cascade' }),
+    memberType: text('member_type').notNull().default('APPROVER'), // APPROVER | CC | SHARE
+    position: integer('position').notNull().default(1),
+  },
+  (t) => [index('approval_line_members_line_idx').on(t.lineId)],
 );
 
 /** Admin-configurable route per request type. */

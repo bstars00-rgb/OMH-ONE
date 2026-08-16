@@ -11,7 +11,7 @@ import {
   employees,
   formTemplates,
 } from '@/lib/db/schema';
-import { appendExtraApprovers, materializeSteps, type ApproverDirectory } from '@/lib/workflow/engine';
+import { materializeSteps, type ApproverDirectory } from '@/lib/workflow/engine';
 import { getI18n } from '@/lib/i18n/server';
 import { EXECUTIVE_SETTING_KEYS } from '@/types/domain';
 import { systemSettings } from '@/lib/db/schema';
@@ -52,7 +52,6 @@ export async function previewChainAction(input: {
   days?: number;
   isInternational?: boolean;
   quotationCount?: number;
-  extraApproverIds?: string[];
 }): Promise<ChainPreview> {
   try {
     const session = await requireSession();
@@ -117,7 +116,7 @@ export async function previewChainAction(input: {
       dir,
     );
 
-    const chain = appendExtraApprovers(auto, input.extraApproverIds ?? [], session.employeeId);
+    const chain = auto;
     if (chain.length === 0) return { ok: false, message: t('wfError.noApprover'), steps: [] };
 
     /* --- names for display --- */

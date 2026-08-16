@@ -4,7 +4,7 @@ import * as React from 'react';
 import { CalendarDays, Info } from 'lucide-react';
 import { Card, CardBody, CardHeader, Checkbox, Field, Input, Select, Textarea, Progress } from '@/components/ui/primitives';
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
-import { ChainPicker } from './chain-picker';
+import { ChainPicker, type LineOption } from './chain-picker';
 import { createLeaveAction } from '@/server/actions/create';
 import { calcWorkingDays, toISODate } from '@/lib/dates';
 import { useI18n } from '@/lib/i18n/client';
@@ -15,9 +15,11 @@ import type { LeaveFormData } from '@/server/queries/form-context';
 export function LeaveForm({
   data,
   holidays,
+  lines,
 }: {
   data: LeaveFormData;
   holidays: { holidayDate: string; name: string }[];
+  lines: LineOption[];
 }) {
   const { t, locale } = useI18n();
   const today = toISODate(new Date());
@@ -31,7 +33,8 @@ export function LeaveForm({
   const [handoverTo, setHandoverTo] = React.useState('');
 
   const { pending, result, errors, run } = useCreateForm();
-  const [extraApprovers, setExtraApprovers] = React.useState<string[]>([]);
+  const [approverIds, setApproverIds] = React.useState<string[]>([]);
+  const [lineId, setLineId] = React.useState<string | null>(null);
 
   // Working days are computed live, using the same calculator the server uses —
   // the user should never be surprised by the number after submitting.
@@ -147,8 +150,8 @@ export function LeaveForm({
         <FieldError id="form-error" message={errors._form} />
 
         <FormActions
-          onSave={() => run((submitNow) => createLeaveAction(payload(), submitNow, extraApprovers), false)}
-          onSubmit={() => run((submitNow) => createLeaveAction(payload(), submitNow, extraApprovers), true)}
+          onSave={() => run((submitNow) => createLeaveAction(payload(), submitNow, { approverIds, approvalLineId: lineId }), false)}
+          onSubmit={() => run((submitNow) => createLeaveAction(payload(), submitNow, { approverIds, approvalLineId: lineId }), true)}
           pending={pending}
           result={result}
           disabled={!startDate || !endDate}
@@ -160,8 +163,10 @@ export function LeaveForm({
         <ChainPicker
           facts={{ requestType: 'LEAVE', days: calc?.workingDays ?? 0 }}
           colleagues={data.colleagues}
-          extraApproverIds={extraApprovers}
-          onChange={setExtraApprovers}
+          lines={lines}
+          value={approverIds}
+          onChange={setApproverIds}
+          onLineChange={setLineId}
         />
         <Card>
           <CardHeader title={t('leave.yourBalance')} />
