@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, Loader2, Save, UserPlus, X } from 'lucide-react';
 import { Avatar, Badge, Button, Card, CardBody, CardHeader, Input, Select } from '@/components/ui/primitives';
 import { previewChainAction } from '@/server/actions/chain-preview';
 import { saveMyLineAction } from '@/server/actions/approval-lines';
+import { EmployeePicker } from '@/components/ui/employee-picker';
 import { useI18n } from '@/lib/i18n/client';
 import { cn } from '@/lib/utils';
 
@@ -121,11 +122,6 @@ export function ChainPicker({
 
   /** What is actually shown and submitted. */
   const chain = touched ? value : suggested;
-  const available = [...directory.entries()]
-    .filter(([id]) => !chain.includes(id))
-    .map(([id, v]) => ({ id, name: v.name, position: v.position }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-
   function applyLine(id: string) {
     setLineId(id);
     onLineChange?.(id || null);
@@ -260,31 +256,26 @@ export function ChainPicker({
         {/* Add */}
         {adding ? (
           <div className="flex gap-2">
-            <Select
-              autoFocus
-              aria-label={t('chain.addApprover')}
-              defaultValue=""
-              onChange={(e) => {
-                if (e.target.value) onChange([...chain, e.target.value]);
-                setAdding(false);
-              }}
-              className="h-8 flex-1"
-            >
-              <option value="">{t('tpl.choose')}</option>
-              {available.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                  {c.position ? ` · ${c.position}` : ''}
-                </option>
-              ))}
-            </Select>
+            <div className="flex-1">
+              <EmployeePicker
+                value={null}
+                ariaLabel={t('chain.addApprover')}
+                onChange={(person) => {
+                  if (person && !chain.includes(person.id)) {
+                    setNames((prev) => new Map(prev).set(person.id, { name: person.name, position: person.position ?? null }));
+                    onChange([...chain, person.id]);
+                  }
+                  setAdding(false);
+                }}
+              />
+            </div>
             <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>
               {t('action.cancel')}
             </Button>
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setAdding(true)} disabled={available.length === 0}>
+            <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
               <UserPlus /> {t('chain.addApprover')}
             </Button>
             {touched && (

@@ -69,6 +69,7 @@ function LeaveContent({ detail, l }: { detail: RequestDetail; l: L }) {
           <DetailRow label={t('content.halfDayStart')}>{t(leave.halfDayStart ? 'common.yes' : 'common.no')}</DetailRow>
           <DetailRow label={t('content.halfDayEnd')}>{t(leave.halfDayEnd ? 'common.yes' : 'common.no')}</DetailRow>
           <DetailRow label={t('content.emergencyContact')}>{leave.emergencyContact ?? '—'}</DetailRow>
+          <DetailRow label={t('leaveForm.handoverTo')}>{leave.handoverName ?? '—'}</DetailRow>
         </dl>
         {leave.reason && (
           <div className="sm:col-span-2">

@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Card, CardBody, CardHeader, Checkbox, Field, Input, Select, Textarea } from '@/components/ui/primitives';
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
 import { ChainPicker, type LineOption } from './chain-picker';
+import { EmployeePicker, type PickedPerson } from '@/components/ui/employee-picker';
 import { createTemplateRequestAction } from '@/server/actions/templates';
 import { useI18n } from '@/lib/i18n/client';
 import { buildTitle, type TemplateField } from '@/lib/validation/templates';
@@ -45,6 +46,9 @@ export function TemplateForm({
   const [values, setValues] = React.useState<Record<string, unknown>>(() =>
     Object.fromEntries(template.fields.map((f) => [f.key, f.type === 'checkbox' ? false : ''])),
   );
+  // Employee fields store an id; the picker needs the name too, so it is kept
+  // alongside rather than looked up on every render.
+  const [people, setPeople] = React.useState<Record<string, PickedPerson | null>>({});
 
   const { pending, result, errors, run } = useCreateForm();
   const [approverIds, setApproverIds] = React.useState<string[]>([]);
@@ -113,14 +117,15 @@ export function TemplateForm({
                       ))}
                     </Select>
                   ) : field.type === 'employee' ? (
-                    <Select id={field.key} value={String(values[field.key] ?? '')} onChange={(e) => set(field.key, e.target.value)}>
-                      <option value="">{t('label.notAssigned')}</option>
-                      {colleagues.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </Select>
+                    <EmployeePicker
+                      id={field.key}
+                      value={people[field.key] ?? null}
+                      ariaLabel={fieldLabel}
+                      onChange={(person) => {
+                        setPeople((prev) => ({ ...prev, [field.key]: person }));
+                        set(field.key, person?.id ?? '');
+                      }}
+                    />
                   ) : field.type === 'checkbox' ? (
                     <label className="flex h-9 items-center gap-2 text-xs text-text">
                       <Checkbox checked={Boolean(values[field.key])} onChange={(e) => set(field.key, e.target.checked)} />

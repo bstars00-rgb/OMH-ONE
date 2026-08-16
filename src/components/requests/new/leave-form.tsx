@@ -5,6 +5,7 @@ import { CalendarDays, Info } from 'lucide-react';
 import { Card, CardBody, CardHeader, Checkbox, Field, Input, Select, Textarea, Progress } from '@/components/ui/primitives';
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
 import { ChainPicker, type LineOption } from './chain-picker';
+import { EmployeePicker, type PickedPerson } from '@/components/ui/employee-picker';
 import { createLeaveAction } from '@/server/actions/create';
 import { calcWorkingDays, toISODate } from '@/lib/dates';
 import { useI18n } from '@/lib/i18n/client';
@@ -30,7 +31,7 @@ export function LeaveForm({
   const [halfDayEnd, setHalfDayEnd] = React.useState(false);
   const [reason, setReason] = React.useState('');
   const [emergencyContact, setEmergencyContact] = React.useState('');
-  const [handoverTo, setHandoverTo] = React.useState('');
+  const [handover, setHandover] = React.useState<PickedPerson | null>(null);
 
   const { pending, result, errors, run } = useCreateForm();
   const [approverIds, setApproverIds] = React.useState<string[]>([]);
@@ -51,7 +52,16 @@ export function LeaveForm({
   const overdrawn = remainingAfter !== null && remainingAfter < 0;
 
   function payload() {
-    return { leaveType, startDate, endDate, halfDayStart, halfDayEnd, reason, emergencyContact, handoverTo };
+    return {
+      leaveType,
+      startDate,
+      endDate,
+      halfDayStart,
+      halfDayEnd,
+      reason,
+      emergencyContact,
+      handoverTo: handover?.id ?? '',
+    };
   }
 
   function applyDraft(fields: Record<string, unknown>) {
@@ -85,14 +95,12 @@ export function LeaveForm({
               hint={t('leaveForm.handoverHint')}
               error={errors.handoverTo}
             >
-              <Select id="handoverTo" value={handoverTo} onChange={(e) => setHandoverTo(e.target.value)}>
-                <option value="">{t('label.notAssigned')}</option>
-                {data.colleagues.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
+              <EmployeePicker
+                id="handoverTo"
+                value={handover}
+                onChange={setHandover}
+                ariaLabel={t('leaveForm.handoverTo')}
+              />
             </Field>
 
             <Field label={t('leaveForm.firstDay')} htmlFor="startDate" required error={errors.startDate}>

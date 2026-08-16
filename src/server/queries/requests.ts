@@ -229,7 +229,7 @@ export interface RequestDetail {
   actions: (typeof approvalActions.$inferSelect & { approverName: string | null })[];
   comments: (typeof comments.$inferSelect & { authorName: string | null })[];
   attachments: (typeof attachments.$inferSelect)[];
-  leave: typeof leaveRequests.$inferSelect | null;
+  leave: (typeof leaveRequests.$inferSelect & { handoverName: string | null }) | null;
   trip:
     | (typeof businessTrips.$inferSelect & {
         travelers: { id: string; name: string; isLead: boolean; position: string | null }[];
@@ -347,7 +347,18 @@ export async function getRequestDetail(session: SessionUser, id: string): Promis
   switch (row.request.requestType) {
     case 'LEAVE': {
       const [l] = await db.select().from(leaveRequests).where(eq(leaveRequests.requestId, id)).limit(1);
-      detail.leave = l ?? null;
+      // Who is covering matters to the approver: an absence with no cover is the
+      // thing they are actually being asked to accept.
+      let handoverName: string | null = null;
+      if (l?.handoverTo) {
+        const [person] = await db
+          .select({ name: employees.name })
+          .from(employees)
+          .where(eq(employees.id, l.handoverTo))
+          .limit(1);
+        handoverName = person?.name ?? null;
+      }
+      detail.leave = l ? { ...l, handoverName } : null;
       break;
     }
     case 'BUSINESS_TRIP': {
