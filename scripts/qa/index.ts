@@ -772,6 +772,10 @@ async function main() {
     truthy(rows.length >= 2, `create and delete both logged (got ${rows.length})`);
   });
 
+  await (await import('./admin-checks')).adminChecks({
+    db, dEq, and, sql, schema, admin, employee, manager, orgValidation, policyValidation,
+  });
+
   /* ================================================================ */
   section('7. 정책 — Policies');
   /* ================================================================ */
@@ -938,6 +942,10 @@ async function main() {
       .limit(200);
     const mismatched = rows.filter((r) => Math.abs(Number(r.total) - Number(r.lines)) > 0.02);
     eq(mismatched.length, 0, `claims whose header disagrees with its lines: ${mismatched.map((r) => r.number).join(', ')}`);
+  });
+
+  await (await import('./ai-checks')).aiChecks({
+    db, dEq, schema, employee, create, approval, future, reqOf,
   });
 
   process.exit(report('실패한 검사 — Failures'));
