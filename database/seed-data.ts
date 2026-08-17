@@ -65,13 +65,26 @@ export interface SeedEmployee {
   /** Login roles. Employees without an entry still get an account as EMPLOYEE. */
   roles?: string[];
   primaryRole?: string;
+  /**
+   * Executives approve; they do not file requests.
+   *
+   * The system does not forbid it — an executive who genuinely needs to submit
+   * something can, and the "새 기안" button is still there for them. This flag
+   * only keeps them out of the demo's requester pool, so seeded history reads
+   * the way the company actually works: the CEO's name appears on approvals,
+   * never as the person asking.
+   */
+  isExecutive?: boolean;
 }
 
-/** 30 fictional employees across 8 departments and 3 offices. */
+/** 31 fictional employees across 8 departments and 3 offices. */
 export const EMPLOYEES: SeedEmployee[] = [
   // CEO Office
-  { code: 'E001', name: 'Aiden Park', email: 'aiden@ohmyhotel.com', department: 'CEO', office: 'VN', position: 'Managing Director', managerCode: null, isDeptHead: true, joinDate: '2019-03-04', allowance: 20, primaryRole: 'DIRECTOR', roles: ['DIRECTOR'] },
+  { code: 'E001', name: 'Jackie Lee', email: 'jackie@ohmyhotel.com', department: 'CEO', office: 'VN', position: 'Managing Director', managerCode: null, isDeptHead: true, isExecutive: true, joinDate: '2019-03-04', allowance: 20, primaryRole: 'DIRECTOR', roles: ['DIRECTOR'] },
   { code: 'E002', name: 'Sophia Yun', email: 'sophia.yun@ohmyhotel.com', department: 'CEO', office: 'VN', position: 'Executive Assistant', managerCode: 'E001', joinDate: '2021-06-14', allowance: 15 },
+  // Approves the CTO step. Deliberately not the IT department head: that role
+  // resolves DEPT_HEAD routing for IT staff and belongs to the IT Manager.
+  { code: 'E003', name: 'Daniel Cho', email: 'daniel.cho@ohmyhotel.com', department: 'CEO', office: 'VN', position: 'Chief Technology Officer', managerCode: 'E001', isExecutive: true, joinDate: '2019-05-20', allowance: 20, primaryRole: 'DIRECTOR', roles: ['DIRECTOR'] },
 
   // SCM
   { code: 'E010', name: 'Vicky Nguyen', email: 'vicky@ohmyhotel.com', department: 'SCM', team: 'SCM-CTR', office: 'VN', position: 'SCM Manager', managerCode: 'E001', isDeptHead: true, joinDate: '2020-01-13', allowance: 18, primaryRole: 'MANAGER', roles: ['MANAGER'] },

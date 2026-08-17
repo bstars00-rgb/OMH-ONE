@@ -88,7 +88,7 @@ async function main() {
 
   const employee = await sessionFor('employee@ohmyhotel.com'); // Bryant Vo, SCM, VN
   const manager = await sessionFor('vicky@ohmyhotel.com'); // Vicky Nguyen, SCM head
-  const director = await sessionFor('aiden@ohmyhotel.com');
+  const director = await sessionFor('jackie@ohmyhotel.com');
   const finance = await sessionFor('finance@ohmyhotel.com');
   const admin = await sessionFor('admin@ohmyhotel.com');
   const auditor = await sessionFor('auditor@ohmyhotel.com');
@@ -632,6 +632,37 @@ async function main() {
       steps.every((st) => st.approverId !== director.employeeId),
       'the director is not their own approver',
     );
+  });
+
+  await check('임원은 시드 이력에서 기안자로 등장하지 않는다', async () => {
+    // Executives approve rather than file. Nothing forbids it — the check is
+    // that the demo data reads the way the company actually works.
+    const { EMPLOYEES } = await import('../../database/seed-data');
+    const execEmails = EMPLOYEES.filter((e) => e.isExecutive).map((e) => e.email);
+    truthy(execEmails.length > 0, 'the seed designates at least one executive');
+    const rows = await db
+      .select({ number: requests.requestNumber, who: employees.name })
+      .from(requests)
+      .innerJoin(employees, dEq(employees.id, requests.requesterId))
+      .where(and(sql`${employees.email} in ${execEmails}`, sql`${requests.title} not like 'QA suite%'`))
+      .limit(5);
+    eq(rows.length, 0, `executive-filed requests: ${rows.map((r) => `${r.number} (${r.who})`).join(', ')}`);
+  });
+
+  await check('최종 승인권자는 CEO이고 대표이사와 동일인이다', async () => {
+    const { systemSettings } = schema;
+    const setting = async (key: string) => {
+      const [row] = await db.select().from(systemSettings).where(dEq(systemSettings.key, key)).limit(1);
+      return typeof row?.value === 'string' ? row.value : null;
+    };
+    const [ceo, dir, cto] = await Promise.all([
+      setting('approver.CEO'),
+      setting('approver.DIRECTOR'),
+      setting('approver.CTO'),
+    ]);
+    truthy(ceo, 'a CEO is designated');
+    eq(ceo, dir, 'CEO and Managing Director are the same person');
+    truthy(cto && cto !== ceo, 'the CTO is a different person from the CEO');
   });
 
   await check('결재자를 한 명도 찾을 수 없으면 상신 자체가 거부된다', async () => {

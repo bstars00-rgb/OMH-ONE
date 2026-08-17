@@ -11,7 +11,7 @@ import { setLocaleAction } from '@/server/actions/office';
 import { cn } from '@/lib/utils';
 
 const DEMO_ACCOUNTS = [
-  { email: 'aiden@ohmyhotel.com', name: 'Aiden Park', roleKey: 'role.DIRECTOR' },
+  { email: 'jackie@ohmyhotel.com', name: 'Jackie Lee', roleKey: 'role.DIRECTOR' },
   { email: 'admin@ohmyhotel.com', name: 'Ethan Park', roleKey: 'role.ADMIN' },
   { email: 'mia@ohmyhotel.com', name: 'Mia Song', roleKey: 'role.HR' },
   { email: 'finance@ohmyhotel.com', name: 'Olivia Chen', roleKey: 'role.FINANCE' },
@@ -25,7 +25,7 @@ const DEMO_PASSWORD = 'demo1234';
 export function LoginForm({ next }: { next?: string }) {
   const { t, locale } = useI18n();
   const [state, action, pending] = useActionState<LoginState, FormData>(loginAction, {});
-  const [email, setEmail] = React.useState('aiden@ohmyhotel.com');
+  const [email, setEmail] = React.useState('jackie@ohmyhotel.com');
   const [password, setPassword] = React.useState(DEMO_PASSWORD);
 
   return (

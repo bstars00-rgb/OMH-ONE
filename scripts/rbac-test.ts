@@ -22,7 +22,7 @@ interface Ctx {
 }
 
 const ACCOUNTS: Record<string, string> = {
-  director: 'aiden@ohmyhotel.com',
+  director: 'jackie@ohmyhotel.com',
   admin: 'admin@ohmyhotel.com',
   hr: 'mia@ohmyhotel.com',
   finance: 'finance@ohmyhotel.com',

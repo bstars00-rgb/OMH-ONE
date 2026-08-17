@@ -368,7 +368,7 @@ export async function seed(db: Database) {
   const DIRECTOR = 'E001';
   const HR_APPROVER = 'E070';
   const FINANCE_APPROVER = 'E060';
-  const CTO = 'E050';
+  const CTO = 'E003';
 
   const counters = new Map<string, number>();
   function nextNumber(type: keyof typeof REQUEST_TYPE_META) {
@@ -836,8 +836,11 @@ export async function seed(db: Database) {
   ) {
     const item = opts.itemIndex != null ? PURCHASE_ITEMS_POOL[opts.itemIndex] : pick(PURCHASE_ITEMS_POOL);
     if (!requesterCode) {
-      const candidates = EMPLOYEES.filter((e) => item.depts.includes(e.department));
-      requesterCode = pick(candidates.length ? candidates : EMPLOYEES).code;
+      // Some items list the CEO office among their departments; executives still
+      // do not file the purchase order themselves.
+      const staff = EMPLOYEES.filter((e) => !e.isExecutive);
+      const candidates = staff.filter((e) => item.depts.includes(e.department));
+      requesterCode = pick(candidates.length ? candidates : staff).code;
     }
     const qty = opts.qty ?? intBetween(1, item.maxQty);
     const unit = round2(item.unit * between(0.97, 1.05));
@@ -1111,8 +1114,13 @@ export async function seed(db: Database) {
   /* 2. Twelve months of closed history                                */
   /* ---------------------------------------------------------------- */
 
-  const allCodes = EMPLOYEES.map((e) => e.code);
-  const travellerCodes = EMPLOYEES.filter((e) => ['SCM', 'GSM', 'CT', 'OP', 'CEO'].includes(e.department)).map((e) => e.code);
+  // Executives approve rather than file. Excluding them here is what makes the
+  // seeded history read correctly: the CEO's name appears on approvals, never as
+  // the person asking for something.
+  const allCodes = EMPLOYEES.filter((e) => !e.isExecutive).map((e) => e.code);
+  const travellerCodes = EMPLOYEES.filter(
+    (e) => !e.isExecutive && ['SCM', 'GSM', 'CT', 'OP', 'CEO'].includes(e.department),
+  ).map((e) => e.code);
 
   const daysElapsedThisMonth = NOW.getUTCDate();
 
@@ -1447,7 +1455,7 @@ export async function seed(db: Database) {
     // means replacing the person re-routes every future request without editing
     // a single workflow. Values are employee codes.
     { key: 'approver.CEO', value: 'E001', description: 'Employee code approving CEO workflow steps.' },
-    { key: 'approver.CTO', value: 'E050', description: 'Employee code approving CTO workflow steps.' },
+    { key: 'approver.CTO', value: 'E003', description: 'Employee code approving CTO workflow steps.' },
     { key: 'approver.DIRECTOR', value: 'E001', description: 'Employee code approving Director workflow steps.' },
   ]);
 

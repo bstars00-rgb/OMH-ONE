@@ -16,7 +16,7 @@ const BASE = process.argv[2] ?? 'http://localhost:3000';
 const LOCALES = ['en', 'ko'] as const;
 
 const ACCOUNTS = [
-  { label: 'Director', email: 'aiden@ohmyhotel.com' },
+  { label: 'Director', email: 'jackie@ohmyhotel.com' },
   { label: 'Admin', email: 'admin@ohmyhotel.com' },
   { label: 'HR', email: 'mia@ohmyhotel.com' },
   { label: 'Finance', email: 'finance@ohmyhotel.com' },
