@@ -80,6 +80,14 @@ jobs:
       - name: Security assertions
         run: npm run test:rbac
 
+      # Business logic, not reachability: creation, routing, decisions, budget
+      # reservation and data invariants. Runs against its own in-memory
+      # database, so it does not contend with the server started above.
+      - name: Functional QA
+        run: npm run test:qa
+        env:
+          AUTH_SECRET: ci-test-secret
+
       - name: Server log on failure
         if: failure()
         run: tail -100 /tmp/server.log

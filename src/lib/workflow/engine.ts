@@ -104,8 +104,13 @@ function resolveApprover(role: string, dir: ApproverDirectory): string | null {
  *   2. never route a request to its own requester;
  *   3. collapse consecutive steps that resolve to the same approver.
  *
- * If every step collapses away (e.g. the Director files their own request), a
- * single Director step is kept so nothing can self-approve into APPROVED silently.
+ * If every step collapses away, one step is still kept, so nothing can reach
+ * APPROVED without a person deciding it. Who that is walks a ladder rather than
+ * being fixed on the Director: the Director filing their own small request is
+ * precisely the case where a Director step cannot exist, and requiring one left
+ * them unable to submit at all (`wfError.noApprover`). The next executive takes
+ * it, and Finance is the last resort — the ordinary control for the spending of
+ * whoever sits at the top.
  */
 export function materializeSteps(
   templates: WorkflowStepTemplate[],
@@ -132,8 +137,19 @@ export function materializeSteps(
     });
   }
 
-  if (out.length === 0 && dir.directorId && dir.directorId !== dir.requesterId) {
-    out.push({ stepOrder: 1, name: 'Director Approval', approverRole: 'DIRECTOR', approverId: dir.directorId, slaHours: 48 });
+  if (out.length === 0) {
+    const ladder: { role: ApproverRole; name: string; id: string | null }[] = [
+      { role: 'DIRECTOR', name: 'Director Approval', id: dir.directorId },
+      { role: 'CEO', name: 'CEO Approval', id: dir.ceoId },
+      { role: 'CTO', name: 'CTO Approval', id: dir.ctoId },
+      { role: 'FINANCE', name: 'Finance Approval', id: dir.financeId },
+      { role: 'DEPT_HEAD', name: 'Department Head Approval', id: dir.deptHeadId },
+      { role: 'MANAGER', name: 'Manager Approval', id: dir.managerId },
+    ];
+    const fallback = ladder.find((r) => r.id && r.id !== dir.requesterId);
+    if (fallback) {
+      out.push({ stepOrder: 1, name: fallback.name, approverRole: fallback.role, approverId: fallback.id!, slaHours: 48 });
+    }
   }
 
   return out;
