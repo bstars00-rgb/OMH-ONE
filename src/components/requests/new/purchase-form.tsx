@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import { Button, Card, CardBody, CardHeader, Field, Input, Select, Textarea } from '@/components/ui/primitives';
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
+import { ChainPicker, type LineOption } from './chain-picker';
 import { createPurchaseAction } from '@/server/actions/create';
 import { toISODate } from '@/lib/dates';
 import { round2 } from '@/lib/money';
@@ -28,9 +29,11 @@ const newItem = (): ItemLine => ({
 });
 
 export function PurchaseForm({
+  lines,
   vendors,
 }: {
   vendors: { id: string; name: string; category: string | null; isPreferred: boolean }[];
+  lines: LineOption[];
 }) {
   const { t, locale } = useI18n();
   const today = toISODate(new Date());
@@ -43,6 +46,8 @@ export function PurchaseForm({
   const [items, setItems] = React.useState<ItemLine[]>([newItem()]);
 
   const { pending, result, errors, run } = useCreateForm();
+  const [approverIds, setApproverIds] = React.useState<string[]>([]);
+  const [lineId, setLineId] = React.useState<string | null>(null);
   const money = (v: number) => formatMoneyL(locale, v, currency);
 
   const total = round2(items.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0), 0));
@@ -226,15 +231,23 @@ export function PurchaseForm({
         <FieldError id="form-error" message={errors._form} />
 
         <FormActions
-          onSave={() => run((s) => createPurchaseAction(payload(), s), false)}
-          onSubmit={() => run((s) => createPurchaseAction(payload(), s), true)}
+          onSave={() => run((s) => createPurchaseAction(payload(), s, { approverIds, approvalLineId: lineId }), false)}
+          onSubmit={() => run((s) => createPurchaseAction(payload(), s, { approverIds, approvalLineId: lineId }), true)}
           pending={pending}
           result={result}
           disabled={!items.some((i) => i.itemName.trim())}
         />
       </div>
 
-      <aside>
+      <aside className="space-y-4">
+        <ChainPicker
+          facts={{ requestType: 'PURCHASE', amountBase: total, quotationCount: quotes }}
+          colleagues={[]}
+          lines={lines}
+          value={approverIds}
+          onChange={setApproverIds}
+          onLineChange={setLineId}
+        />
         <Card className="sticky top-20">
           <CardHeader title={t('prForm.beforeSubmit')} />
           <CardBody className="space-y-2 text-xs">

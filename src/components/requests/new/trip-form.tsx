@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Plane, Plus, Trash2 } from 'lucide-react';
 import { Button, Card, CardBody, CardHeader, Checkbox, Field, Input, Select, Textarea } from '@/components/ui/primitives';
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
+import { ChainPicker, type LineOption } from './chain-picker';
 import { createTripAction } from '@/server/actions/create';
 import { daysBetween, toISODate } from '@/lib/dates';
 import { round2 } from '@/lib/money';
@@ -27,9 +28,11 @@ const newLine = (category = 'FLIGHT'): CostLine => ({
 
 export function TripForm({
   colleagues,
+  lines,
   destinations,
 }: {
   colleagues: { id: string; name: string; departmentCode: string | null }[];
+  lines: LineOption[];
   destinations: { city: string; country: string; avgHotel: number }[];
 }) {
   const { t, locale } = useI18n();
@@ -54,6 +57,8 @@ export function TripForm({
   const [costs, setCosts] = React.useState<CostLine[]>([newLine('FLIGHT'), newLine('HOTEL')]);
 
   const { pending, result, errors, run } = useCreateForm();
+  const [approverIds, setApproverIds] = React.useState<string[]>([]);
+  const [lineId, setLineId] = React.useState<string | null>(null);
 
   const nights = Number(hotelNights) || 0;
   const rate = Number(hotelRatePerNight) || 0;
@@ -350,15 +355,23 @@ export function TripForm({
         <FieldError id="form-error" message={errors._form} />
 
         <FormActions
-          onSave={() => run((s) => createTripAction(payload(), s), false)}
-          onSubmit={() => run((s) => createTripAction(payload(), s), true)}
+          onSave={() => run((s) => createTripAction(payload(), s, { approverIds, approvalLineId: lineId }), false)}
+          onSubmit={() => run((s) => createTripAction(payload(), s, { approverIds, approvalLineId: lineId }), true)}
           pending={pending}
           result={result}
           disabled={!city || !country || !startDate || !endDate}
         />
       </div>
 
-      <aside>
+      <aside className="space-y-4">
+        <ChainPicker
+          facts={{ requestType: 'BUSINESS_TRIP', amountBase: total, isInternational }}
+          colleagues={colleagues}
+          lines={lines}
+          value={approverIds}
+          onChange={setApproverIds}
+          onLineChange={setLineId}
+        />
         <Card className="sticky top-20">
           <CardHeader title={t('tripForm.summary')} />
           <CardBody className="space-y-1.5 text-xs">

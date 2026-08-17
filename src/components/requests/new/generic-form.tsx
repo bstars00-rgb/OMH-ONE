@@ -4,6 +4,7 @@ import * as React from 'react';
 import { FileText, UserCog } from 'lucide-react';
 import { Card, CardBody, CardHeader, Field, Input, Select, Textarea } from '@/components/ui/primitives';
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
+import { ChainPicker, type LineOption } from './chain-picker';
 import { createGenericAction } from '@/server/actions/create';
 import { toISODate } from '@/lib/dates';
 import { useI18n } from '@/lib/i18n/client';
@@ -38,7 +39,7 @@ const GENERAL_CATEGORIES = [
   'Other',
 ];
 
-export function GenericForm({ type }: { type: 'HR' | 'GENERAL' }) {
+export function GenericForm({ type, lines }: { type: 'HR' | 'GENERAL'; lines: LineOption[] }) {
   const { t, tOr, locale } = useI18n();
   const today = toISODate(new Date());
   const categories = type === 'HR' ? HR_CATEGORIES : GENERAL_CATEGORIES;
@@ -51,6 +52,8 @@ export function GenericForm({ type }: { type: 'HR' | 'GENERAL' }) {
   const [requestedDate, setRequestedDate] = React.useState('');
 
   const { pending, result, errors, run } = useCreateForm();
+  const [approverIds, setApproverIds] = React.useState<string[]>([]);
+  const [lineId, setLineId] = React.useState<string | null>(null);
   const numericAmount = Number(amount) || 0;
 
   function payload() {
@@ -146,15 +149,23 @@ export function GenericForm({ type }: { type: 'HR' | 'GENERAL' }) {
         <FieldError id="form-error" message={errors._form} />
 
         <FormActions
-          onSave={() => run((s) => createGenericAction(type, payload(), s), false)}
-          onSubmit={() => run((s) => createGenericAction(type, payload(), s), true)}
+          onSave={() => run((s) => createGenericAction(type, payload(), s, { approverIds, approvalLineId: lineId }), false)}
+          onSubmit={() => run((s) => createGenericAction(type, payload(), s, { approverIds, approvalLineId: lineId }), true)}
           pending={pending}
           result={result}
           disabled={!title.trim() || details.trim().length < 10}
         />
       </div>
 
-      <aside>
+      <aside className="space-y-4">
+        <ChainPicker
+          facts={{ requestType: type }}
+          colleagues={[]}
+          lines={lines}
+          value={approverIds}
+          onChange={setApproverIds}
+          onLineChange={setLineId}
+        />
         <Card className="sticky top-20">
           <CardHeader title={t('genForm.routing')} />
           <CardBody className="space-y-2 text-xs text-text-muted">

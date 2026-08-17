@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Loader2, Plus, Receipt, ScanLine, Trash2 } from 'lucide-react';
 import { Button, Card, CardBody, CardHeader, Field, Input, Select, Textarea } from '@/components/ui/primitives';
 import { AiDraftBox, FieldError, FormActions, useCreateForm } from './form-shell';
+import { ChainPicker, type LineOption } from './chain-picker';
 import { createExpenseAction, extractReceiptAction } from '@/server/actions/create';
 import { toISODate } from '@/lib/dates';
 import { round2 } from '@/lib/money';
@@ -34,9 +35,11 @@ const newLine = (): ExpenseLine => ({
 });
 
 export function ExpenseForm({
+  lines,
   trips,
 }: {
   trips: { id: string; requestNumber: string; city: string; country: string; startDate: string }[];
+  lines: LineOption[];
 }) {
   const { t, locale } = useI18n();
   const [paymentMethod, setPaymentMethod] = React.useState('PERSONAL');
@@ -47,6 +50,8 @@ export function ExpenseForm({
   const [scanning, setScanning] = React.useState(false);
 
   const { pending, result, errors, run } = useCreateForm();
+  const [approverIds, setApproverIds] = React.useState<string[]>([]);
+  const [lineId, setLineId] = React.useState<string | null>(null);
   const money = (v: number) => formatMoneyL(locale, v, currency);
   const total = round2(items.reduce((s, i) => s + (Number(i.amount) || 0), 0));
 
@@ -266,15 +271,23 @@ export function ExpenseForm({
         <FieldError id="form-error" message={errors._form} />
 
         <FormActions
-          onSave={() => run((s) => createExpenseAction(payload(), s), false)}
-          onSubmit={() => run((s) => createExpenseAction(payload(), s), true)}
+          onSave={() => run((s) => createExpenseAction(payload(), s, { approverIds, approvalLineId: lineId }), false)}
+          onSubmit={() => run((s) => createExpenseAction(payload(), s, { approverIds, approvalLineId: lineId }), true)}
           pending={pending}
           result={result}
           disabled={!items.some((i) => Number(i.amount) > 0)}
         />
       </div>
 
-      <aside>
+      <aside className="space-y-4">
+        <ChainPicker
+          facts={{ requestType: 'EXPENSE', amountBase: total }}
+          colleagues={[]}
+          lines={lines}
+          value={approverIds}
+          onChange={setApproverIds}
+          onLineChange={setLineId}
+        />
         <Card className="sticky top-20">
           <CardHeader title={t('prForm.beforeSubmit')} />
           <CardBody className="space-y-2 text-xs">

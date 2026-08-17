@@ -1,7 +1,7 @@
 import 'server-only';
-import { and, asc, eq, isNull, or, type SQL } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { ready } from '@/lib/db/bootstrap';
-import { approvalLineMembers, approvalLines, employees } from '@/lib/db/schema';
+import { approvalLineMembers, approvalLines, departments, employees, offices, requests } from '@/lib/db/schema';
 import type { SessionUser } from '@/lib/auth/session';
 
 export type MemberType = 'APPROVER' | 'CC' | 'SHARE';
@@ -101,5 +101,86 @@ export async function listApprovalLines(
     ownerId: r.ownerId,
     requestType: r.requestType,
     members: byLine.get(r.id) ?? [],
+  }));
+}
+
+export interface AdminApprovalLine extends ApprovalLine {
+  officeId: string | null;
+  officeCode: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  /** How many requests were submitted starting from this line. */
+  uses: number;
+}
+
+/**
+ * Every organization line, for the administrator managing them.
+ *
+ * Personal lines are deliberately absent. They belong to the people who made
+ * them, and an admin screen that listed everyone's private shortcuts would turn
+ * a convenience into surveillance without making anything easier to administer.
+ */
+export async function listOrgApprovalLines(): Promise<AdminApprovalLine[]> {
+  const db = await ready();
+
+  const rows = await db
+    .select({
+      id: approvalLines.id,
+      name: approvalLines.name,
+      requestType: approvalLines.requestType,
+      officeId: approvalLines.officeId,
+      officeCode: offices.code,
+      isActive: approvalLines.isActive,
+      sortOrder: approvalLines.sortOrder,
+    })
+    .from(approvalLines)
+    .leftJoin(offices, eq(offices.id, approvalLines.officeId))
+    .where(isNull(approvalLines.ownerId))
+    .orderBy(asc(approvalLines.sortOrder), asc(approvalLines.name));
+
+  if (rows.length === 0) return [];
+
+  const [members, uses] = await Promise.all([
+    db
+      .select({
+        lineId: approvalLineMembers.lineId,
+        employeeId: approvalLineMembers.employeeId,
+        memberType: approvalLineMembers.memberType,
+        position: approvalLineMembers.position,
+        name: employees.name,
+        jobTitle: employees.position,
+        departmentCode: departments.code,
+      })
+      .from(approvalLineMembers)
+      .innerJoin(employees, eq(employees.id, approvalLineMembers.employeeId))
+      .leftJoin(departments, eq(departments.id, employees.departmentId))
+      .orderBy(asc(approvalLineMembers.position)),
+    db
+      .select({ lineId: requests.approvalLineId, n: sql<number>`count(*)::int` })
+      .from(requests)
+      .where(isNotNull(requests.approvalLineId))
+      .groupBy(requests.approvalLineId),
+  ]);
+
+  const byLine = new Map<string, LineMember[]>();
+  for (const m of members) {
+    const list = byLine.get(m.lineId) ?? [];
+    list.push({
+      employeeId: m.employeeId,
+      name: m.name,
+      position: m.jobTitle,
+      departmentCode: m.departmentCode,
+      memberType: m.memberType as MemberType,
+      order: m.position,
+    });
+    byLine.set(m.lineId, list);
+  }
+  const useCount = new Map(uses.map((u) => [u.lineId ?? '', Number(u.n)]));
+
+  return rows.map((r) => ({
+    ...r,
+    ownerId: null,
+    members: byLine.get(r.id) ?? [],
+    uses: useCount.get(r.id) ?? 0,
   }));
 }

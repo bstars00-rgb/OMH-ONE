@@ -25,8 +25,8 @@ export const admin: MessageTable = {
     ko: '기안 건마다 조직도에서 자동 결정됩니다 — 기안자의 팀장, 부서장, 또는 인사·재무·대표이사실 책임자.',
   },
   'wf.byPersonHint': {
-    en: 'Always this person, regardless of who raised the request. Use for fixed approval chains such as Paul → Vicky → Aiden → CTO → CEO.',
-    ko: '기안자와 무관하게 항상 이 사람이 결재합니다. 폴 → 비키 → 에이든 → CTO → CEO 같은 고정 결재선에 사용하세요.',
+    en: 'Always this person, regardless of who raised the request. Use for fixed approval chains such as Paul → Vicky → CTO → CEO.',
+    ko: '기안자와 무관하게 항상 이 사람이 결재합니다. 폴 → 비키 → CTO → CEO 같은 고정 결재선에 사용하세요.',
   },
   'wf.slaHours': { en: 'SLA (hours)', ko: '처리 기한 (시간)' },
   'wf.requiredWhen': { en: 'Required when', ko: '적용 조건' },
@@ -64,8 +64,8 @@ export const admin: MessageTable = {
   },
   'wf.how4': { en: 'Consecutive steps resolving to the same person are collapsed into one decision.', ko: '연속된 단계의 결재자가 동일하면 한 번의 결재로 합쳐집니다.' },
   'wf.how5': {
-    en: 'If every step collapses away, a single Director step is kept — nothing can reach Approved without a human.',
-    ko: '모든 단계가 제외되면 임원 결재 1단계가 유지됩니다. 사람의 결재 없이 승인 완료될 수 없습니다.',
+    en: 'If every step collapses away, one step is still kept — the first of Director, CEO, CTO, Finance, department head or manager who is not the requester. Nothing can reach Approved without a human.',
+    ko: '모든 단계가 제외되면 한 단계는 남습니다 — 임원·CEO·CTO·재무·부서장·팀장 중 기안자 본인이 아닌 첫 사람입니다. 사람의 결재 없이 승인 완료될 수 없습니다.',
   },
 
   /* --- policies --- */
@@ -169,6 +169,64 @@ export const admin: MessageTable = {
   'users.cannotDisableSelf': { en: 'You cannot deactivate your own account.', ko: '본인 계정은 비활성화할 수 없습니다.' },
 
   /* --- organization --- */
+  /* --- approval line presets (admin) --- */
+  'line.title': { en: 'Approval Lines', ko: '결재라인 관리' },
+  'line.subtitle': {
+    en: 'Saved lists of approvers that requesters can pick instead of assembling the same people every time. The workflow decides the route from the request; a line names the people.',
+    ko: '기안자가 매번 같은 사람을 고르지 않도록 저장해 둔 결재자 목록입니다. 결재선 설정이 기안 내용으로 경로를 정한다면, 결재라인은 사람을 지정합니다.',
+  },
+  'line.listTitle': { en: 'Organization lines ({count})', ko: '전사 결재라인 ({count}개)' },
+  'line.listSubtitle': {
+    en: 'Offered to everyone in scope. Personal lines belong to the people who made them and are not listed here.',
+    ko: '범위 내 모든 임직원에게 제공됩니다. 개인이 저장한 My결재라인은 본인 것이므로 여기 표시하지 않습니다.',
+  },
+  'line.new': { en: 'New line', ko: '결재라인 신규' },
+  'line.newTitle': { en: 'New approval line', ko: '결재라인 신규' },
+  'line.editTitle': { en: 'Edit approval line', ko: '결재라인 수정' },
+  'line.dialogNote': {
+    en: 'Order is the approval order. Deleting a line later does not change requests already submitted through it.',
+    ko: '나열 순서가 결재 순서입니다. 나중에 삭제해도 이미 상신된 기안의 결재선은 바뀌지 않습니다.',
+  },
+  'line.nameLabel': { en: 'Line name', ko: '결재라인 이름' },
+  'line.namePlaceholder': { en: 'e.g. 지출결의_영업팀', ko: '예: 지출결의_영업팀' },
+  'line.requestType': { en: 'Request type', ko: '기안 유형' },
+  'line.requestTypeHint': { en: 'Offered only for this type.', ko: '이 유형의 기안에만 제공됩니다.' },
+  'line.anyType': { en: 'Any type', ko: '유형 무관' },
+  'line.allOffices': { en: 'All offices', ko: '전 지사' },
+  'line.officeHint': { en: 'Offered only in this office.', ko: '이 지사에서만 제공됩니다.' },
+  'line.members': { en: 'Approvers, in order', ko: '결재자 (순서대로)' },
+  'line.noMembers': { en: 'No approvers — this line does nothing', ko: '결재자 없음 — 동작하지 않는 결재라인입니다' },
+  'line.noMembersYet': { en: 'No one added yet.', ko: '아직 추가된 사람이 없습니다.' },
+  'line.addMember': { en: 'Add approver', ko: '결재자 추가' },
+  'line.isActive': { en: 'Line is available to requesters', ko: '기안자에게 제공' },
+  'line.uses': { en: 'used {count}×', ko: '{count}회 사용' },
+  'line.edit': { en: 'Edit {name}', ko: '{name} 수정' },
+  'line.delete': { en: 'Delete {name}', ko: '{name} 삭제' },
+  'line.confirmDelete': { en: 'Delete {name}?', ko: '{name}을(를) 삭제할까요?' },
+  'line.confirmDeleteUsed': {
+    en: 'Delete {name}? It was the starting point for {count} request(s). Their approval history is unaffected.',
+    ko: '{name}을(를) 삭제할까요? 기안 {count}건의 시작점이었습니다. 해당 기안의 결재 이력은 그대로 유지됩니다.',
+  },
+  'line.empty': { en: 'No organization lines yet', ko: '등록된 전사 결재라인이 없습니다' },
+  'line.emptyHint': {
+    en: 'Requesters fall back to the route the workflow derives, which is usually correct. Add a line where a team repeats the same approvers.',
+    ko: '결재라인이 없으면 결재선 설정이 도출한 경로를 사용하며, 대개 그것이 맞습니다. 같은 결재자를 반복하는 팀에만 등록하세요.',
+  },
+  'line.footnote': {
+    en: 'A requester may edit the line after picking it — removing someone, adding someone, reordering. The system records the deviation rather than forbidding it, so an approver sees the route was not the standard one.',
+    ko: '기안자는 결재라인을 고른 뒤 수정할 수 있습니다 — 빼기, 추가, 순서 변경. 시스템은 이를 막지 않고 기록하므로, 결재자는 표준 경로가 아니었다는 것을 알 수 있습니다.',
+  },
+  'line.created': { en: 'Line {name} created.', ko: '결재라인 {name}을(를) 등록했습니다.' },
+  'line.saved': { en: 'Line {name} saved.', ko: '결재라인 {name}을(를) 저장했습니다.' },
+  'line.deleted': { en: 'Line {name} deleted.', ko: '결재라인 {name}을(를) 삭제했습니다.' },
+  'line.needName': { en: 'Enter a line name of 2–80 characters.', ko: '결재라인 이름을 2~80자로 입력하세요.' },
+  'line.needApprover': { en: 'A line needs at least one approver.', ko: '결재라인에는 결재자가 최소 1명 필요합니다.' },
+  'line.tooManyApprovers': { en: 'A line takes at most 10 approvers.', ko: '결재라인은 최대 10명까지입니다.' },
+  'line.inactiveApprover': { en: 'One of the approvers is no longer active.', ko: '결재자 중 재직 중이 아닌 사람이 있습니다.' },
+  'line.nameTaken': { en: 'A line named {name} already exists.', ko: '{name} 결재라인이 이미 있습니다.' },
+  'line.notFound': { en: 'That line no longer exists.', ko: '해당 결재라인이 존재하지 않습니다.' },
+  'line.checkValues': { en: 'Check the values entered.', ko: '입력값을 확인하세요.' },
+
   'org.title': { en: 'Organization', ko: '조직 관리' },
   'org.subtitle': {
     en: 'Offices, departments, teams and cost centres. Department heads drive approval routing.',

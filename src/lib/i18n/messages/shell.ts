@@ -28,6 +28,7 @@ export const shell: MessageTable = {
   'nav.audit': { en: 'Audit Logs', ko: '감사 로그' },
   'nav.admin.workflows': { en: 'Workflow Builder', ko: '결재선 설정' },
   'nav.admin.templates': { en: 'Form Templates', ko: '기안 양식' },
+  'nav.admin.lines': { en: 'Approval Lines', ko: '결재라인 관리' },
   'nav.admin.policies': { en: 'Policies', ko: '정책 관리' },
   'nav.admin.organization': { en: 'Organization', ko: '조직 관리' },
   'nav.admin.users': { en: 'Users', ko: '사용자 관리' },

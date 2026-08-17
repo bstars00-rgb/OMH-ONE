@@ -86,17 +86,27 @@ async function FormFor({ type, session }: { type: RequestType; session: Awaited<
       );
     }
     case 'BUSINESS_TRIP': {
-      const { colleagues, destinations } = await getTripFormData(session);
-      return <TripForm colleagues={colleagues} destinations={destinations} />;
+      const [{ colleagues, destinations }, lines] = await Promise.all([
+        getTripFormData(session),
+        listApprovalLines(session, { requestType: 'BUSINESS_TRIP' }),
+      ]);
+      return <TripForm colleagues={colleagues} destinations={destinations} lines={lines} />;
     }
     case 'PURCHASE': {
-      const vendors = await getPurchaseFormData();
-      return <PurchaseForm vendors={vendors} />;
+      const [vendors, lines] = await Promise.all([
+        getPurchaseFormData(),
+        listApprovalLines(session, { requestType: 'PURCHASE' }),
+      ]);
+      return <PurchaseForm vendors={vendors} lines={lines} />;
     }
     case 'EXPENSE': {
-      const trips = await getLinkableTrips(session);
+      const [trips, lines] = await Promise.all([
+        getLinkableTrips(session),
+        listApprovalLines(session, { requestType: 'EXPENSE' }),
+      ]);
       return (
         <ExpenseForm
+          lines={lines}
           trips={trips.map((t) => ({
             id: t.id,
             requestNumber: t.requestNumber,
@@ -107,7 +117,10 @@ async function FormFor({ type, session }: { type: RequestType; session: Awaited<
         />
       );
     }
-    default:
-      return <GenericForm type={type === 'HR' ? 'HR' : 'GENERAL'} />;
+    default: {
+      const kind = type === 'HR' ? 'HR' : 'GENERAL';
+      const lines = await listApprovalLines(session, { requestType: kind });
+      return <GenericForm type={kind} lines={lines} />;
+    }
   }
 }

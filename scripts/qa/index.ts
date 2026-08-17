@@ -681,6 +681,98 @@ async function main() {
   });
 
   /* ================================================================ */
+  section('6b. 결재라인 관리 — Approval line presets');
+  /* ================================================================ */
+
+  const lines = await import('@/server/services/approval-lines');
+  let orgLineId = '';
+
+  await check('관리자는 전사 결재라인을 만들 수 있다', async () => {
+    const res = await lines.saveApprovalLine(admin, 'organization', {
+      name: 'QA 전사라인',
+      approverIds: [manager.employeeId, finance.employeeId],
+      requestType: 'PURCHASE',
+    });
+    eq(res.ok, true, res.key);
+    orgLineId = res.lineId ?? '';
+    truthy(orgLineId, 'line id returned');
+  });
+
+  await check('저장한 순서가 결재 순서로 보존된다', async () => {
+    const { approvalLineMembers } = schema;
+    const rows = await db
+      .select()
+      .from(approvalLineMembers)
+      .where(dEq(approvalLineMembers.lineId, orgLineId))
+      .orderBy(approvalLineMembers.position);
+    eq(rows.length, 2, 'member count');
+    eq(rows[0].employeeId, manager.employeeId, 'first approver');
+    eq(rows[1].employeeId, finance.employeeId, 'second approver');
+  });
+
+  await check('일반 직원은 전사 결재라인을 만들 수 없다', async () => {
+    const res = await lines.saveApprovalLine(employee, 'organization', {
+      name: 'QA 무단 라인',
+      approverIds: [manager.employeeId],
+    });
+    eq(res.ok, false, 'refused');
+    eq(res.key, 'wfError.noPermission', 'reason');
+  });
+
+  await check('같은 이름의 전사 결재라인은 중복 등록되지 않는다', async () => {
+    const res = await lines.saveApprovalLine(admin, 'organization', {
+      name: 'QA 전사라인',
+      approverIds: [director.employeeId],
+    });
+    eq(res.ok, false, 'refused');
+    eq(res.key, 'line.nameTaken', 'reason');
+  });
+
+  await check('결재자가 없는 결재라인은 저장되지 않는다', async () => {
+    const res = await lines.saveApprovalLine(admin, 'organization', { name: 'QA 빈 라인', approverIds: [] });
+    eq(res.ok, false, 'refused');
+  });
+
+  await check('개인 결재라인에는 본인이 결재자로 들어가지 않는다', async () => {
+    const res = await lines.saveApprovalLine(employee, 'personal', {
+      name: 'QA 내 라인',
+      approverIds: [employee.employeeId, manager.employeeId],
+    });
+    eq(res.ok, true, res.key);
+    const { approvalLineMembers } = schema;
+    const rows = await db.select().from(approvalLineMembers).where(dEq(approvalLineMembers.lineId, res.lineId!));
+    eq(rows.length, 1, 'only the other person remains');
+    eq(rows[0].employeeId, manager.employeeId, 'the approver');
+  });
+
+  await check('남의 개인 결재라인은 삭제할 수 없다', async () => {
+    const mine = await lines.saveApprovalLine(manager, 'personal', {
+      name: 'QA 팀장 라인',
+      approverIds: [finance.employeeId],
+    });
+    const res = await lines.deleteApprovalLine(employee, mine.lineId!);
+    eq(res.ok, false, 'refused');
+    eq(res.key, 'wfError.noPermission', 'reason');
+  });
+
+  await check('전사 결재라인 삭제는 과거 기안의 결재 이력을 바꾸지 않는다', async () => {
+    const before = (await stepsOf(leaveId)).map((st) => `${st.stepOrder}:${st.approverId}:${st.status}`).join('|');
+    const res = await lines.deleteApprovalLine(admin, orgLineId);
+    eq(res.ok, true, res.key);
+    const after = (await stepsOf(leaveId)).map((st) => `${st.stepOrder}:${st.approverId}:${st.status}`).join('|');
+    eq(after, before, 'approval history untouched');
+  });
+
+  await check('결재라인 변경이 감사 로그에 기록된다', async () => {
+    const { auditLogs } = schema;
+    const rows = await db
+      .select({ action: auditLogs.action, entityType: auditLogs.entityType })
+      .from(auditLogs)
+      .where(dEq(auditLogs.entityType, 'approval_line'));
+    truthy(rows.length >= 2, `create and delete both logged (got ${rows.length})`);
+  });
+
+  /* ================================================================ */
   section('7. 정책 — Policies');
   /* ================================================================ */
 

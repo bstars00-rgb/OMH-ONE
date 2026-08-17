@@ -50,6 +50,7 @@ const ROUTES = [
   '/audit',
   '/admin/templates',
   '/admin/workflows',
+  '/admin/approval-lines',
   '/admin/policies',
   '/admin/organization',
   '/admin/users',
