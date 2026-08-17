@@ -4,7 +4,7 @@
     {
       "name": "ohmy-ai-erp",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": ["run", "dev:test"],
       "port": 3000
     }
   ]

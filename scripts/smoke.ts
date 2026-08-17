@@ -68,6 +68,34 @@ const REPORTS = ['approvals', 'leave', 'leave-balances', 'travel', 'expenses', '
  */
 const KEY_IN_TEXT = />\s*([a-z][a-zA-Z]*\.[a-zA-Z][\w.]*)\s*</g;
 
+/**
+ * The same leak, one layer down.
+ *
+ * Client components render after hydration, so their text is never in the HTML
+ * this script fetches — a chart axis reading `expenseCategory.EVENT_FEE` passed
+ * every route check while being plainly visible in the browser. The labels do
+ * travel, as props inside the RSC flight payload, so they are scanned there too.
+ *
+ * Restricted to the enum prefixes rather than any dotted word: those are the
+ * keys built dynamically, and a narrow pattern keeps the payload's own
+ * identifiers from reading as failures.
+ */
+const ENUM_PREFIXES = [
+  'type',
+  'status',
+  'role',
+  'approverRole',
+  'leaveType',
+  'expenseCategory',
+  'tripCost',
+  'purchaseCategory',
+  'payment',
+  'policyMetric',
+  'policySeverity',
+  'budgetCategory',
+];
+const KEY_IN_PAYLOAD = new RegExp(`\\b(${ENUM_PREFIXES.join('|')})\\.[A-Z][A-Z0-9_]*\\b`, 'g');
+
 /** Identifiers the UI shows on purpose: setting names, file names, env vars. */
 const NOT_A_KEY = /\.(pdf|png|jpe?g|csv|com|ts|tsx|js|css|local|env)$/;
 const DELIBERATE = new Set([
@@ -87,6 +115,9 @@ function untranslatedKeys(html: string): string[] {
     const candidate = m[1];
     if (NOT_A_KEY.test(candidate) || DELIBERATE.has(candidate)) continue;
     found.add(candidate);
+  }
+  for (const m of html.matchAll(KEY_IN_PAYLOAD)) {
+    if (!DELIBERATE.has(m[0])) found.add(m[0]);
   }
   return [...found];
 }

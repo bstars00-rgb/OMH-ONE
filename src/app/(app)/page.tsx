@@ -27,10 +27,21 @@ import { BottleneckBars, CategoryBars, ChartCard, SpendLine, StatusDonut, TrendA
 import { Card, CardHeader, CardBody, Progress, buttonVariants } from '@/components/ui/primitives';
 import { PriorityBadge, RiskBadge, SlaBadge, StatusBadge, TypeBadge } from '@/components/ui/badges';
 import { EmptyState } from '@/components/ui/states';
+import { humanize } from '@/lib/utils';
 
 export default async function HomePage() {
   const session = await requireLiveSession();
-  const { t, locale } = await getI18n();
+  const { t, tOr, locale } = await getI18n();
+
+  /**
+   * Spend-by-category unions three tables that each carry their own enum —
+   * expense lines, trip costs and purchase requests. Reading every value through
+   * `expenseCategory.*` printed the raw key for the ones that family does not
+   * contain (TRANSPORT, EVENT_FEE, VISA, IT, SERVICE), so each family is tried
+   * in turn and the code itself is the last resort.
+   */
+  const categoryLabel = (code: string) =>
+    tOr(`expenseCategory.${code}`, tOr(`tripCost.${code}`, tOr(`purchaseCategory.${code}`, humanize(code))));
   const companyWide = can(session, 'analytics.company');
   const scope = scopeLabelKey(session);
   const scopeText = t(scope.key, scope.vars);
@@ -219,7 +230,7 @@ export default async function HomePage() {
             metric={money(catSpend.reduce((s, d) => s + d.value, 0))}
             isEmpty={catSpend.length === 0}
           >
-            <CategoryBars data={catSpend.map((c) => ({ ...c, name: t(`expenseCategory.${c.name}`) }))} />
+            <CategoryBars data={catSpend.map((c) => ({ ...c, name: categoryLabel(c.name) }))} />
           </ChartCard>
 
           <ChartCard
